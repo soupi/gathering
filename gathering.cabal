@@ -1,0 +1,58 @@
+name:                gathering
+version:             0.1.0.0
+synopsis:            Self hosted website for announcing group events
+description:         Please see README.md
+homepage:            https://gitlab.com/gilmi/gathering#readme
+license:             Apache2
+license-file:        LICENSE
+author:              Gil Mizrahi
+maintainer:          gilmi@protonmail.com
+copyright:           2017 Gil Mizrahi
+category:            Web
+build-type:          Simple
+extra-source-files:  README.md
+cabal-version:       >=1.10
+
+library
+  hs-source-dirs:      src
+  exposed-modules:     Web.Gathering
+  --other-modules:       Web.Gathering
+  ghc-options:         -Wall
+  default-language:    Haskell2010
+  build-depends:       base >= 4.7 && < 5
+                     , Spock >= 0.11
+                     , lucid
+                     , Spock-lucid
+                     , Spock-worker
+                     , warp-tls
+                     , users
+                     , hasql
+                     , validate-input
+                     , aeson
+                     , mtl
+                     , containers
+                     , text
+                     , bytestring
+                     , transformers
+                     , mtl
+                     , time
+
+  default-extensions:  OverloadedStrings
+                     , LambdaCase
+                     , ViewPatterns
+                     , ScopedTypeVariables
+                     , RecordWildCards
+                     , NamedFieldPuns
+                     , TupleSections
+                     , DeriveFunctor
+                     , DeriveGeneric
+                     , EmptyDataDecls
+
+executable gather
+  hs-source-dirs:      app
+  main-is:             Main.hs
+  default-language:    Haskell2010
+  ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N
+  build-depends:       base >= 4.7 && < 5
+                     , gathering
+
