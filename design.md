@@ -54,8 +54,8 @@ create table users (
     user_email citext UNIQUE not null,
     user_isadmin bool not null,
     user_wants_updates bool not null,
-    user_password_hash varchar(512) not null,
-    user_password_salt varchar(512) not null,
+    user_password_hash bytea not null,
+    user_password_salt bytea not null,
 );
 
 create table events (
@@ -63,7 +63,7 @@ create table events (
     event_name text not null,
     event_description text not null,
     event_location text not null,
-    event_datetime datetime not null,
+    event_datetime timestamptz not null,
     event_duration interval not null
 );
 
@@ -97,16 +97,16 @@ data Event = Event
   , eventDateTime :: UTCTime
   , eventDuration :: DiffTime
   }
-  deriving (Show, Read, Eq, Ord)
+  deriving (Show, Eq, Ord)
 
 data Attendant = Attendant
   { attendantUser :: User
   , attendantAttending :: Bool
-  , AttendantFollowsChanges :: Bool
+  , attendantFollowsChanges :: Bool
   }
   deriving (Show, Read, Eq, Ord)
 
-type Attendants = Map Event Attendant
+type Attendants = Map Event [Attendant]
 
 ```
 

@@ -16,26 +16,52 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   exposed-modules:     Web.Gathering
+                       Web.Gathering.Database
+                       Web.Gathering.Model
+                       Web.Gathering.Utils
+
   --other-modules:       Web.Gathering
   ghc-options:         -Wall
   default-language:    Haskell2010
   build-depends:       base >= 4.7 && < 5
+                     -- framework
                      , Spock >= 0.11
+                     -- html
                      , lucid
                      , Spock-lucid
+                     -- background tasks like sending mails to users
                      , Spock-worker
+                     -- tls support
                      , warp-tls
+                     -- users and auth handling
                      , users
+                     , cryptonite
+                     , bcrypt
+                     -- database integration
                      , hasql
+                     -- input validation
                      , validate-input
+                     -- 
+                     , http-types
+                     -- resource handling
+                     , resourcet
+                     -- logging stuff
+                     , monad-logger
+                     -- handling configurations
+                     , configurator
+                     -- json
                      , aeson
-                     , mtl
+                     -- time handling
+                     , time
+                     --
+                     , hvect
+                     -- utils
                      , containers
-                     , text
                      , bytestring
+                     , text
                      , transformers
                      , mtl
-                     , time
+                     , contravariant
 
   default-extensions:  OverloadedStrings
                      , LambdaCase

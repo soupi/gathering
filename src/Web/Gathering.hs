@@ -8,6 +8,7 @@ import Data.Monoid
 import Data.IORef
 import qualified Data.Text as T
 
+
 data MySession = EmptySession
 data MyAppState = DummyAppState (IORef Int)
 
