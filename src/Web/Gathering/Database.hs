@@ -42,6 +42,24 @@ getEvents = Sql.query () $
     (SqlD.rowsList decodeEvent)
     False
 
+-- | Get future events from the events table
+getFutureEvents :: Sql.Session [Event]
+getFutureEvents = Sql.query () $
+  Sql.statement
+    "select * from events where event_datetime >= now() order by event_datetime asc"
+    mempty
+    (SqlD.rowsList decodeEvent)
+    False
+
+-- | Get future events from the events table
+getPastEvents :: Sql.Session [Event]
+getPastEvents = Sql.query () $
+  Sql.statement
+    "select * from events where event_datetime < now() order by event_datetime desc"
+    mempty
+    (SqlD.rowsList decodeEvent)
+    False
+
 -- | Get all attendants
 getAttendants :: Sql.Session Attendants
 getAttendants = do

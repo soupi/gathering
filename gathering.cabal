@@ -3,7 +3,7 @@ version:             0.1.0.0
 synopsis:            Self hosted website for announcing group events
 description:         Please see README.md
 homepage:            https://gitlab.com/gilmi/gathering#readme
-license:             Apache2
+license:             Apache-2.0
 license-file:        LICENSE
 author:              Gil Mizrahi
 maintainer:          gilmi@protonmail.com
@@ -37,11 +37,12 @@ library
                      , users
                      , cryptonite
                      , bcrypt
+                     , hvect
                      -- database integration
                      , hasql
                      -- input validation
                      , validate-input
-                     -- 
+                     --
                      , http-types
                      -- resource handling
                      , resourcet
@@ -53,8 +54,8 @@ library
                      , aeson
                      -- time handling
                      , time
-                     --
-                     , hvect
+                     -- render event as markdown
+                     , markdown
                      -- utils
                      , containers
                      , bytestring
