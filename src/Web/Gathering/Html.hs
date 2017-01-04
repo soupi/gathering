@@ -24,3 +24,7 @@ template title header nav body =
 
 main :: String -> L.Html () -> L.Html () -> L.Html () -> L.Html ()
 main title header nav body = undefined
+
+signin :: L.Html ()
+signin = do
+  h1_ "Login"

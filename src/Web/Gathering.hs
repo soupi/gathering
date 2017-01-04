@@ -1,5 +1,7 @@
 module Web.Gathering where
 
+import Web.Gathering.Types
+
 import Web.Spock
 import Web.Spock.Config
 
@@ -8,9 +10,6 @@ import Data.Monoid
 import Data.IORef
 import qualified Data.Text as T
 
-
-data MySession = EmptySession
-data MyAppState = DummyAppState (IORef Int)
 
 run :: IO ()
 run = do

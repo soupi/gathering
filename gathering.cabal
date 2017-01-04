@@ -18,6 +18,7 @@ library
   exposed-modules:     Web.Gathering
                        Web.Gathering.Database
                        Web.Gathering.Model
+                       Web.Gathering.Types
                        Web.Gathering.Utils
 
   --other-modules:       Web.Gathering
@@ -38,10 +39,15 @@ library
                      , cryptonite
                      , bcrypt
                      , hvect
+                     -- Forms handling
+                     , digestive-functors
+                     , digestive-functors-lucid
+                     , Spock-digestive
+
                      -- database integration
                      , hasql
                      -- input validation
-                     , validate-input
+                     , html-email-validate
                      --
                      , http-types
                      -- resource handling
