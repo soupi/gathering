@@ -6,6 +6,9 @@ module Web.Gathering.Database where
 import Web.Gathering.Model
 import Web.Gathering.Utils
 
+import Web.Spock.Config
+import qualified Web.Spock.Config as SC
+import qualified Hasql.Connection as Sql
 import qualified Hasql.Query as Sql
 import qualified Hasql.Session as Sql
 import qualified Hasql.Decoders as SqlD
@@ -13,16 +16,27 @@ import qualified Hasql.Encoders as SqlE
 
 import qualified Data.Map.Strict as M
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as BSC
 import qualified Data.Text as T
 import Data.Functor.Contravariant (contramap)
 import Data.Monoid
 import Data.Int (Int32)
 import Data.List (find)
-import Data.Maybe (mapMaybe)
+import Data.Maybe (mapMaybe, listToMaybe)
 
 -----------
 -- Query --
 -----------
+
+-- | Get a user from the users table with a specific id
+getUserById :: UserId -> Sql.Session (Maybe User)
+getUserById uid = fmap listToMaybe $ Sql.query () $
+  Sql.statement
+    "select (user_id, user_name, user_email, user_isadmin, user_wants_updates) from users where user_id = $1"
+    (const uid `contramap` SqlE.value SqlE.int4)
+    (SqlD.rowsList decodeUser)
+    True
+
 
 -- | Get users from the users table
 getUsers :: Sql.Session [User]
@@ -269,3 +283,14 @@ toAttendant events users (eid, uid, att, fol) =
   of
     Just (e,u) -> pure (e, Attendant u att fol)
     Nothing -> Nothing
+
+---------------------
+-- Connection pool --
+---------------------
+
+hasqlPool :: Sql.Settings -> SC.ConnBuilder Sql.Connection
+hasqlPool connstr = SC.ConnBuilder
+  { cb_createConn = either (error . show . fmap BSC.unpack) id <$> Sql.acquire connstr
+  , cb_destroyConn = Sql.release
+  , cb_poolConfiguration = PoolCfg 10 1000 30
+  }

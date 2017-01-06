@@ -7,6 +7,7 @@ import Data.Int (Int32)
 import Data.Time (UTCTime, DiffTime)
 import Data.Map.Strict (Map)
 
+type UserId = Int32
 
 -- | Describing a user of the system
 data User = User
