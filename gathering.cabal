@@ -20,6 +20,8 @@ library
                        Web.Gathering.Model
                        Web.Gathering.Types
                        Web.Gathering.Utils
+                       Web.Gathering.Config
+                       Web.Gathering.Run
 
   --other-modules:       Web.Gathering
   ghc-options:         -Wall
@@ -33,6 +35,7 @@ library
                      -- background tasks like sending mails to users
                      , Spock-worker
                      -- tls support
+                     , warp
                      , warp-tls
                      -- users and auth handling
                      , users
@@ -43,7 +46,6 @@ library
                      , digestive-functors
                      , digestive-functors-lucid
                      , Spock-digestive
-
                      -- database integration
                      , hasql
                      -- input validation
@@ -66,6 +68,9 @@ library
                      , containers
                      , bytestring
                      , text
+                     , directory
+                     , process
+                     , optparse-applicative
                      , transformers
                      , mtl
                      , contravariant
