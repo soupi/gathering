@@ -112,7 +112,7 @@ getAttendantsForEvent event = do
 newUser :: Sql.Query (User, BS.ByteString, BS.ByteString) ()
 newUser =
   Sql.statement
-    "insert into users values ($1, $2, $3, $4, $5, $6)"
+    "insert into users (user_name, user_email, user_isadmin, user_wants_updates, user_password_hash, user_password_salt) values ($1, $2, $3, $4, $5, $6)"
     encodeNewUser
     SqlD.unit
     True
@@ -140,7 +140,7 @@ updateUserWithPassword =
 newEvent :: Sql.Query Event ()
 newEvent =
   Sql.statement
-    "insert into users values ($1, $2, $3, $4, $5)"
+    "insert into events (event_name, event_description, event_location, event_datetime, event_duration) values ($1, $2, $3, $4, $5)"
     encodeNewEvent
     SqlD.unit
     True

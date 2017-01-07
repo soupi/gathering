@@ -1,11 +1,11 @@
 create table users (
     user_id serial primary key,
-    user_name text not unique null,
-    user_email citext unique not null,
+    user_name text unique not null,
+    user_email text unique not null,
     user_isadmin bool not null,
     user_wants_updates bool not null,
     user_password_hash bytea not null,
-    user_password_salt bytea not null,
+    user_password_salt bytea not null
 );
 
 create table events (
