@@ -8,23 +8,30 @@ module Web.Gathering.Run where
 
 import Web.Gathering.Types
 import Web.Gathering.Config
+import Web.Gathering.Model
+import Web.Gathering.Database
+import qualified Web.Gathering.Forms.Sign as FS
 
 import Data.HVect
 import Data.Monoid
 import Control.Monad (void)
 import Control.Concurrent (forkIO)
-import Web.Spock
-import Web.Spock.Config
 import Network.Wai.Handler.Warp (setPort, defaultSettings)
 import Network.Wai.Handler.WarpTLS (runTLS, tlsSettings)
-import qualified Network.HTTP.Types.Status as Http
+--import qualified Network.HTTP.Types.Status as Http
 import qualified Data.Text as T
 import qualified Data.ByteString.Char8 as BS
 
-import Web.Gathering.Model
-import Web.Gathering.Database
 import Hasql.Connection (Connection)
 import qualified Hasql.Session as Sql (run)
+
+import Web.Spock
+import Web.Spock.Lucid
+import Web.Spock.Config
+import Web.Spock.Digestive
+
+import Lucid
+
 
 run :: IO ()
 run = do
@@ -53,7 +60,7 @@ app :: App ()
 app = prehook baseHook $ do
   prehook guestOnlyHook $ do
 
-    get ("login") loginAction
+    getpost ("login") loginAction
 
     get root $ maybeUser $ \case
       Just _ ->
@@ -73,10 +80,27 @@ app = prehook baseHook $ do
     get ("logout") $ do
       text "Logged out."
 
-loginAction :: (ListContains n IsGuest xs, NotInList User xs ~ 'True) => Action (HVect xs) a
+loginAction :: (ListContains n IsGuest xs, NotInList User xs ~ 'True) => Action (HVect xs) ()
 loginAction = do
-  writeSession (SessionId 1)
-  text $ "Logged in as: " <> T.pack (show (1 :: Int))
+  form <- runForm "loginForm" FS.signinForm
+  let
+    formView mErr view = do
+      maybe (pure ()) id mErr
+      FS.signinFormView view
+  case form of
+    (view, Nothing) ->
+      lucid $ formView Nothing view
+    (view, Just FS.Signin{sinLogin, sinPassword}) -> do
+      signinRes <-
+        runQuery $ Sql.run (getUserWithPass sinLogin sinPassword)
+      case signinRes of
+        Right Nothing ->
+          lucid $ formView (pure $ p_ "Invalid user name/email or password.") view
+        Right (Just user) -> do
+          writeSession (SessionId (userId user))
+          text $ "Logged in as: " <> T.pack (userName user)
+        Left err -> do
+          text $ T.pack (show err) -- @TODO @DANGER
 
 -----------
 -- Hooks --

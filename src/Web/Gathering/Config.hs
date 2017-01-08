@@ -101,7 +101,7 @@ defaultConfig :: AppConfig
 defaultConfig = AppConfig
   { cfgTitle = "Gathering"
   , cfgDesc  = "Get together!"
-  , cfgDbConnStr = "host=localhost dbname=gathering port=5432 user=gather password=gather"
+  , cfgDbConnStr = "host=localhost dbname=gather port=5432 user=gather password=gather"
   }
 
 --------------------

@@ -37,6 +37,18 @@ getUserById uid = fmap listToMaybe $ Sql.query () $
     (SqlD.rowsList decodeUser)
     True
 
+-- | Find a user by matching either their username or email with a String and matching their password
+getUserWithPass :: String -> String -> Sql.Session (Maybe User)
+getUserWithPass (T.pack -> login) (BSC.pack -> pass) = fmap listToMaybe $ Sql.query () $
+  Sql.statement
+    "select (user_id, user_name, user_email, user_isadmin, user_wants_updates) from users where (user_name = $1 OR user_email = $2) AND user_password_hash = $3"
+    (  const login `contramap` SqlE.value SqlE.text
+    <> const login `contramap` SqlE.value SqlE.text
+    <> const pass  `contramap` SqlE.value SqlE.bytea
+    )
+    (SqlD.rowsList decodeUser)
+    True
+
 
 -- | Get users from the users table
 getUsers :: Sql.Session [User]
