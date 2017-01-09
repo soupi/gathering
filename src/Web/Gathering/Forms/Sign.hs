@@ -5,6 +5,7 @@
 module Web.Gathering.Forms.Sign where
 
 import Web.Gathering.Types
+import Web.Gathering.Model
 
 import Data.Maybe (catMaybes)
 import Text.Digestive ((.:))
@@ -14,28 +15,30 @@ import qualified Lucid as H
 import qualified Data.Text as T
 import Text.Html.Email.Validate (isValidEmail)
 
-{- | Defining the registeration form as a digestive functor
+{- | Defining the signup form as a digestive functor
 -}
 
-data Registration
-   = Registration
-   { regUsername :: T.Text
-   , regPassword :: T.Text
-   , regPasswordConfirm :: T.Text
-   , regEmail :: T.Text
+data Signup
+   = Signup
+   { supUsername :: T.Text
+   , supEmail :: T.Text
+   , supPassword :: T.Text
+   , supPasswordConfirm :: T.Text
+   , supWantNotifications :: Bool
    } deriving (Show)
 
-registerForm :: Monad m => D.Form [T.Text] m Registration
-registerForm = Registration
+signupForm :: Monad m => D.Form (H.Html ()) m Signup
+signupForm = Signup
     <$> "name"      .: D.validateM validateName (D.text Nothing)
+    <*> "email"     .: D.validateM validateMail (D.text Nothing)
     <*> "password1" .: D.validateM validatePass (D.text Nothing)
     <*> "password2" .: D.text Nothing
-    <*> "email"     .: D.validateM validateMail (D.text Nothing)
+    <*> "get_notifications" .: D.bool Nothing
 
 
 -- @TODO: check against database
-validateName :: Monad m => T.Text -> m (D.Result [T.Text] T.Text)
-validateName (trim -> name) = validateM name
+validateName :: Monad m => T.Text -> m (D.Result (H.Html ()) T.Text)
+validateName (trim -> name) = renderErrs $ validateM name
   [ whenMaybe (T.length (T.drop 1 name) == 0) $
       pure $ pure "Name must be at least 2 characters long"
   , whenMaybe (T.length (T.drop 50 name) > 0) $
@@ -43,8 +46,8 @@ validateName (trim -> name) = validateM name
   ]
 
 -- @TODO: check passwords match
-validatePass :: Monad m => T.Text -> m (D.Result [T.Text] T.Text)
-validatePass (trim -> pass) = validateM pass
+validatePass :: Monad m => T.Text -> m (D.Result (H.Html ()) T.Text)
+validatePass (trim -> pass) = renderErrs $ validateM pass
   [ whenMaybe (T.length (T.drop 4 pass) == 0) $
       pure $ pure "Password must be at least 4 characters long"
   , whenMaybe (T.length (T.drop 64 pass) > 0) $
@@ -52,19 +55,19 @@ validatePass (trim -> pass) = validateM pass
   ]
 
 
-validateMail :: Monad m => T.Text -> m (D.Result [T.Text] T.Text)
-validateMail (trim -> email) = validateM email
-  [ whenMaybe (isValidEmail email) $
+validateMail :: Monad m => T.Text -> m (D.Result (H.Html ()) T.Text)
+validateMail (trim -> email) = renderErrs $ validateM email
+  [ whenMaybe (not $ isValidEmail email) $
       pure $ pure "Invalid email address."
   ]
 
 
-{- | Defining the view for the registeration form
+{- | Defining the view for the signup form
 -}
 
-registerFormView :: D.View (H.Html ()) -> H.Html ()
-registerFormView view =
-  D.form view "register" $ do
+signupFormView :: D.View (H.Html ()) -> H.Html ()
+signupFormView view =
+  D.form view "signup" $ do
     H.div_ $ do
       D.errorList "name" view
       D.label     "name" view "Name: "
@@ -84,10 +87,15 @@ registerFormView view =
       D.label         "password2" view "Confirm Password: "
       D.inputPassword "password2" view
 
+    H.div_ $ do
+      D.inputCheckbox "get_notifications" view
+      D.label         "get_notifications" view "Get notifications by mail"
+
+
     D.inputSubmit "Sign-up"
 
 
-{- | Defining the login form as a digestive functor
+{- | Defining the signin form as a digestive functor
 -}
 
 data Signin
@@ -120,12 +128,12 @@ validateSigninPass (trim -> pass) = renderErrs $ validateM pass
   ]
 
 
-{- | Defining the view for the login form
+{- | Defining the view for the signin form
 -}
 
 signinFormView :: D.View (H.Html ()) -> H.Html ()
 signinFormView view =
-  D.form view "login" $ do
+  D.form view "signin" $ do
 
     H.div_ $ do
       D.errorList "login" view

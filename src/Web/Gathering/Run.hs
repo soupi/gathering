@@ -16,6 +16,7 @@ import Data.HVect
 import Data.Monoid
 import Control.Monad (void)
 import Control.Concurrent (forkIO)
+import Control.Monad.IO.Class (liftIO)
 import Network.Wai.Handler.Warp (setPort, defaultSettings)
 import Network.Wai.Handler.WarpTLS (runTLS, tlsSettings)
 --import qualified Network.HTTP.Types.Status as Http
@@ -61,7 +62,11 @@ app :: App ()
 app = prehook baseHook $ do
   prehook guestOnlyHook $ do
 
-    getpost ("login") loginAction
+    getpost ("signup") signupAction
+    getpost ("register") (redirect "signup")
+
+    getpost ("signin") signinAction
+    getpost ("login") (redirect "signin")
 
   get root $ maybeUser $ \case
     Just _ ->
@@ -78,7 +83,7 @@ app = prehook baseHook $ do
       (user :: User) <- fmap findFirst getContext
       text ("Hello " <> userName user)
 
-    get ("logout") $ do
+    get ("singout") $ do
       sess <- readSession
       case sess of
         EmptySession ->
@@ -87,8 +92,10 @@ app = prehook baseHook $ do
           writeSession EmptySession
           text "Logged out."
 
-loginAction :: (ListContains n IsGuest xs, NotInList User xs ~ 'True) => Action (HVect xs) ()
-loginAction = do
+    get ("logout") $ redirect "signout"
+
+signinAction :: (ListContains n IsGuest xs, NotInList User xs ~ 'True) => Action (HVect xs) ()
+signinAction = do
   form <- runForm "loginForm" FS.signinForm
   let
     formView mErr view = do
@@ -99,8 +106,10 @@ loginAction = do
       lucid $ formView Nothing view
     (view, Just FS.Signin{sinLogin, sinPassword}) -> do
       signinRes <-
-        runQuery $ Sql.run (getUserLogin sinLogin)
+        runQuery $ Sql.run (getUserLogin sinLogin sinLogin)
       case signinRes of
+        Left err -> do
+          text $ T.pack (show err)
         Right Nothing ->
           lucid $ formView (pure $ p_ "Invalid user name/email.") view
         Right (Just (user, pass)) -> do
@@ -110,8 +119,39 @@ loginAction = do
               text $ "Logged in as: " <> userName user
             else
               lucid $ formView (pure $ p_ "Invalid password.") view
+
+signupAction :: (ListContains n IsGuest xs, NotInList User xs ~ 'True) => Action (HVect xs) ()
+signupAction = do
+  form <- runForm "registerForm" FS.signupForm
+  let
+    formView mErr view = do
+      maybe (pure ()) id mErr
+      FS.signupFormView view
+  case form of
+    (view, Nothing) ->
+      lucid $ formView Nothing view
+    (view, Just (FS.Signup uname umail pass passConfirm notify)) -> do
+      signinRes <-
+        runQuery $ Sql.run (getUserLogin uname umail)
+      case signinRes of
         Left err -> do
           text $ T.pack (show err)
+        Right (Just _) -> do
+            lucid $ formView (pure $ p_ "Username or email already exists.") view
+        Right _
+          | pass /= passConfirm ->
+            lucid $ formView (pure $ p_ "Passwords do not match.") view
+        Right _ -> do
+          hashedPass <- liftIO $ makePassword pass
+          mNewUser <-
+            runQuery $ Sql.run $ newUser (User 0 uname umail False notify) hashedPass
+          case mNewUser of
+            Left err ->
+              text $ T.pack (show err)
+            Right nUser -> do
+              writeSession (SessionId (userId nUser))
+              text $ "Success! Now logged in as: " <> userName nUser
+
 
 -----------
 -- Hooks --
@@ -126,7 +166,7 @@ authHook =
     oldCtx <- getContext
     case mUser of
       Nothing ->
-        text "Unknown user. Login first!"
+        text "Unknown user. Sign-in first!"
       Just val ->
         pure (val :&: oldCtx)
 

@@ -1,12 +1,13 @@
 module Web.Gathering.HashPassword where
 
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as BSC
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Crypto.PasswordStore as C
 
 
-makePassword :: String -> IO BS.ByteString
-makePassword = flip C.makePassword 15 . BSC.pack
+makePassword :: T.Text -> IO BS.ByteString
+makePassword = flip C.makePassword 15 . T.encodeUtf8
 
 verifyPassword :: BS.ByteString -> BS.ByteString -> Bool
 verifyPassword = C.verifyPassword

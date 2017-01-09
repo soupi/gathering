@@ -30,24 +30,23 @@ import Data.Maybe (mapMaybe)
 
 -- | Get a user from the users table with a specific id
 getUserById :: UserId -> Sql.Session (Maybe User)
-getUserById uid = Sql.query () $
+getUserById uid = Sql.query uid $
   Sql.statement
     "select user_id, user_name, user_email, user_isadmin, user_wants_updates from users where user_id = $1"
-    (const uid `contramap` SqlE.value SqlE.int4)
+    (SqlE.value SqlE.int4)
     (SqlD.maybeRow decodeUser)
     True
 
--- | Find a user by matching either their username or email with a String and matching their password
-getUserLogin :: T.Text -> Sql.Session (Maybe (User, BS.ByteString))
-getUserLogin login = Sql.query () $
+-- | Find a user by matching either their username or email
+getUserLogin :: T.Text -> T.Text -> Sql.Session (Maybe (User, BS.ByteString))
+getUserLogin name email = Sql.query (name, email) $
   Sql.statement
     "select user_id, user_name, user_email, user_isadmin, user_wants_updates, user_password_hash from users where user_name = $1 OR user_email = $2"
-    (  const login `contramap` SqlE.value SqlE.text
-    <> const login `contramap` SqlE.value SqlE.text
+    (  fst `contramap` SqlE.value SqlE.text
+    <> snd `contramap` SqlE.value SqlE.text
     )
     (SqlD.maybeRow ((,) <$> decodeUser <*> SqlD.value SqlD.bytea))
     True
-
 
 -- | Get users from the users table
 getUsers :: Sql.Session [User]
@@ -104,10 +103,10 @@ getAttendants = do
 -- | Get attendants for an event
 getAttendantsForEvent :: Event -> Sql.Session Attendants
 getAttendantsForEvent event = do
-  attendants <- Sql.query () $
+  attendants <- Sql.query event $
     Sql.statement
       "select * from attendants where event_id = $1"
-      (const (eventId event) `contramap` SqlE.value SqlE.int4)
+      (eventId `contramap` SqlE.value SqlE.int4)
       (SqlD.rowsList decodeAttendant)
       True
   users <- filter ((`elem` map snd4 attendants) . userId) <$> getUsers
@@ -120,36 +119,54 @@ getAttendantsForEvent event = do
 -------------------
 
 -- | Add a new user to the users table
-newUser :: Sql.Query (User, BS.ByteString) ()
-newUser =
-  Sql.statement
-    "insert into users (user_name, user_email, user_isadmin, user_wants_updates, user_password_hash) values ($1, $2, $3, $4, $5)"
-    encodeNewUser
-    SqlD.unit
-    True
+newUser :: User -> BS.ByteString -> Sql.Session User
+newUser user pass = do
+  Sql.query (user, pass) $
+    Sql.statement
+      "insert into users (user_name, user_email, user_isadmin, user_wants_updates, user_password_hash) values ($1, $2, $3, $4, $5)"
+      encodeNewUser
+      SqlD.unit
+      True
+  result <- getUserLogin (userName user) (userEmail user)
+  maybe
+    (fail "Internal error: Could not find user after insert.")
+    (pure . fst)
+    result
 
 -- | Update an existing user in the users table
-updateUser :: Sql.Query User ()
-updateUser =
-  Sql.statement
-    "update users set user_name = $2, user_email = $3, user_isadmin = $4, user_wants_updates = $5 where user_id = $1"
-    encodeExistingUser
-    SqlD.unit
-    True
+updateUser :: User -> Sql.Session User
+updateUser user = do
+  Sql.query user $
+    Sql.statement
+      "update users set user_name = $2, user_email = $3, user_isadmin = $4, user_wants_updates = $5 where user_id = $1"
+      encodeExistingUser
+      SqlD.unit
+      True
+  result <- getUserLogin (userName user) (userEmail user)
+  maybe
+    (fail "Internal error: Could not find user after update.")
+    (pure . fst)
+    result
 
 -- | Update an existing user in the users table including the password
-updateUserWithPassword :: Sql.Query (User, BS.ByteString) ()
-updateUserWithPassword =
-  Sql.statement
-    "update users set user_name = $2, user_email = $3, user_isadmin = $4, user_wants_updates = $5, user_password_hash = $6 where user_id = $1"
-    encodeExistingUserWithPassword
-    SqlD.unit
-    True
+updateUserWithPassword :: User -> BS.ByteString -> Sql.Session User
+updateUserWithPassword user pass = do
+  Sql.query (user, pass) $
+    Sql.statement
+      "update users set user_name = $2, user_email = $3, user_isadmin = $4, user_wants_updates = $5, user_password_hash = $6 where user_id = $1"
+      encodeExistingUserWithPassword
+      SqlD.unit
+      True
+  result <- getUserLogin (userName user) (userEmail user)
+  maybe
+    (fail "Internal error: Could not find user after update.")
+    (pure . fst)
+    result
 
 
 -- | Add a new event to events table
-newEvent :: Sql.Query Event ()
-newEvent =
+newEvent :: Event -> Sql.Session ()
+newEvent event = Sql.query event $
   Sql.statement
     "insert into events (event_name, event_description, event_location, event_datetime, event_duration) values ($1, $2, $3, $4, $5)"
     encodeNewEvent
@@ -157,8 +174,8 @@ newEvent =
     True
 
 -- | Update an existing event in the events table
-updateEvent :: Sql.Query Event ()
-updateEvent =
+updateEvent :: Event -> Sql.Session ()
+updateEvent event = Sql.query event $
   Sql.statement
     "update events set event_name = $2, event_description = $3, event_location = $4, event_datetime = $5, event_duration = $6 where event_id = $1"
     encodeExistingEvent
@@ -166,8 +183,8 @@ updateEvent =
     True
 
 -- | Add or update an attendant for an event in the attendants table
-upsertAttendant :: Sql.Query (Event, Attendant) ()
-upsertAttendant =
+upsertAttendant :: Event -> Attendant -> Sql.Session ()
+upsertAttendant event att = Sql.query (event, att) $
   Sql.statement
     "insert into users values ($1, $2, $3, $4) on conflict (event_id, user_id) do update set attending = EXCLUDED.attending, follow_changes = EXCLUDED.follow_changes"
     encodeAttendant
@@ -184,8 +201,7 @@ upsertAttendant =
 -- | Warning: When changing this `newUser` should change as well
 encodeNewUser :: SqlE.Params (User, BS.ByteString)
 encodeNewUser =
-    contramap (userId . fst) (SqlE.value SqlE.int4)
- <> contramap (userName . fst) (SqlE.value SqlE.text)
+    contramap (userName . fst) (SqlE.value SqlE.text)
  <> contramap (userEmail . fst) (SqlE.value SqlE.text)
  <> contramap (userIsAdmin . fst) (SqlE.value SqlE.bool)
  <> contramap (userWantsUpdates . fst) (SqlE.value SqlE.bool)
