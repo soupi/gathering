@@ -30,23 +30,23 @@ import Data.Maybe (mapMaybe, listToMaybe)
 
 -- | Get a user from the users table with a specific id
 getUserById :: UserId -> Sql.Session (Maybe User)
-getUserById uid = fmap listToMaybe $ Sql.query () $
+getUserById uid = Sql.query () $
   Sql.statement
-    "select (user_id, user_name, user_email, user_isadmin, user_wants_updates) from users where user_id = $1"
+    "select user_id, user_name, user_email, user_isadmin, user_wants_updates from users where user_id = $1"
     (const uid `contramap` SqlE.value SqlE.int4)
-    (SqlD.rowsList decodeUser)
+    (SqlD.maybeRow decodeUser)
     True
 
 -- | Find a user by matching either their username or email with a String and matching their password
 getUserWithPass :: String -> String -> Sql.Session (Maybe User)
-getUserWithPass (T.pack -> login) (BSC.pack -> pass) = fmap listToMaybe $ Sql.query () $
+getUserWithPass (T.pack -> login) (BSC.pack -> pass) = Sql.query () $
   Sql.statement
-    "select (user_id, user_name, user_email, user_isadmin, user_wants_updates) from users where (user_name = $1 OR user_email = $2) AND user_password_hash = $3"
+    "select user_id, user_name, user_email, user_isadmin, user_wants_updates from users where (user_name = $1 OR user_email = $2) AND user_password_hash = $3"
     (  const login `contramap` SqlE.value SqlE.text
     <> const login `contramap` SqlE.value SqlE.text
     <> const pass  `contramap` SqlE.value SqlE.bytea
     )
-    (SqlD.rowsList decodeUser)
+    (SqlD.maybeRow decodeUser)
     True
 
 
@@ -54,7 +54,7 @@ getUserWithPass (T.pack -> login) (BSC.pack -> pass) = fmap listToMaybe $ Sql.qu
 getUsers :: Sql.Session [User]
 getUsers = Sql.query () $
   Sql.statement
-    "select (user_id, user_name, user_email, user_isadmin, user_wants_updates) from users"
+    "select user_id, user_name, user_email, user_isadmin, user_wants_updates from users"
     mempty
     (SqlD.rowsList decodeUser)
     False

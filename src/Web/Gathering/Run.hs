@@ -62,15 +62,15 @@ app = prehook baseHook $ do
 
     getpost ("login") loginAction
 
-    get root $ maybeUser $ \case
-      Just _ ->
-        text "Hello User!"
-      Nothing ->
-        text "Hello World!"
+  get root $ maybeUser $ \case
+    Just _ ->
+      text "Hello User!"
+    Nothing ->
+      text "Hello World!"
 
-    get ("hello" <//> var) $ \name -> do
-      AppState cfg <- getState
-      text ("Hello " <> name <> ", welcome to " <> T.pack (show $ cfgTitle cfg))
+  get ("hello" <//> var) $ \name -> do
+    AppState cfg <- getState
+    text ("Hello " <> name <> ", welcome to " <> T.pack (show $ cfgTitle cfg))
 
   prehook authHook $ do
     get ("settings") $ do
@@ -78,7 +78,13 @@ app = prehook baseHook $ do
       text ("Hello " <> T.pack (userName user))
 
     get ("logout") $ do
-      text "Logged out."
+      sess <- readSession
+      case sess of
+        EmptySession ->
+          text "Not logged in."
+        SessionId _ -> do
+          writeSession EmptySession
+          text "Logged out."
 
 loginAction :: (ListContains n IsGuest xs, NotInList User xs ~ 'True) => Action (HVect xs) ()
 loginAction = do
@@ -100,7 +106,7 @@ loginAction = do
           writeSession (SessionId (userId user))
           text $ "Logged in as: " <> T.pack (userName user)
         Left err -> do
-          text $ T.pack (show err) -- @TODO @DANGER
+          text $ T.pack (show err)
 
 -----------
 -- Hooks --
@@ -116,7 +122,6 @@ authHook =
     case mUser of
       Nothing ->
         text "Unknown user. Login first!"
-        --noAccessPage "Unknown user. Login first!"
       Just val ->
         pure (val :&: oldCtx)
 
@@ -152,6 +157,7 @@ maybeUser action = do
       emUser <-
         runQuery $ Sql.run (getUserById uid)
       case emUser of
-        Left err -> error $ show err -- @TODO @DANGER
+        Left err ->
+          text $ T.pack $ show err
         Right mu ->
           action mu
