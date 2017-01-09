@@ -38,8 +38,8 @@ getUserById uid = Sql.query () $
     True
 
 -- | Find a user by matching either their username or email with a String and matching their password
-getUserLogin :: String -> Sql.Session (Maybe (User, BS.ByteString))
-getUserLogin (T.pack -> login) = Sql.query () $
+getUserLogin :: T.Text -> Sql.Session (Maybe (User, BS.ByteString))
+getUserLogin login = Sql.query () $
   Sql.statement
     "select user_id, user_name, user_email, user_isadmin, user_wants_updates, user_password_hash from users where user_name = $1 OR user_email = $2"
     (  const login `contramap` SqlE.value SqlE.text

@@ -20,6 +20,7 @@ import Network.Wai.Handler.Warp (setPort, defaultSettings)
 import Network.Wai.Handler.WarpTLS (runTLS, tlsSettings)
 --import qualified Network.HTTP.Types.Status as Http
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Data.ByteString.Char8 as BSC
 
 import Hasql.Connection (Connection)
@@ -103,7 +104,7 @@ loginAction = do
         Right Nothing ->
           lucid $ formView (pure $ p_ "Invalid user name/email.") view
         Right (Just (user, pass)) -> do
-          if verifyPassword (BSC.pack sinPassword) pass
+          if verifyPassword (T.encodeUtf8 sinPassword) pass
             then do
               writeSession (SessionId (userId user))
               text $ "Logged in as: " <> userName user

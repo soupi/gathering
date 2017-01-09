@@ -19,42 +19,42 @@ import Text.Html.Email.Validate (isValidEmail)
 
 data Registration
    = Registration
-   { regUsername :: String
-   , regPassword :: String
-   , regPasswordConfirm :: String
-   , regEmail :: String
+   { regUsername :: T.Text
+   , regPassword :: T.Text
+   , regPasswordConfirm :: T.Text
+   , regEmail :: T.Text
    } deriving (Show)
 
-registerForm :: Monad m => D.Form [String] m Registration
+registerForm :: Monad m => D.Form [T.Text] m Registration
 registerForm = Registration
-    <$> "name"      .: D.validateM validateName (D.string Nothing)
-    <*> "password1" .: D.validateM validatePass (D.string Nothing)
-    <*> "password2" .: D.string Nothing
-    <*> "email"     .: D.validateM validateMail (D.string Nothing)
+    <$> "name"      .: D.validateM validateName (D.text Nothing)
+    <*> "password1" .: D.validateM validatePass (D.text Nothing)
+    <*> "password2" .: D.text Nothing
+    <*> "email"     .: D.validateM validateMail (D.text Nothing)
 
 
 -- @TODO: check against database
-validateName :: Monad m => String -> m (D.Result [String] String)
-validateName name = validateM name
-  [ whenMaybe (length (drop 1 name) == 0) $
+validateName :: Monad m => T.Text -> m (D.Result [T.Text] T.Text)
+validateName (trim -> name) = validateM name
+  [ whenMaybe (T.length (T.drop 1 name) == 0) $
       pure $ pure "Name must be at least 2 characters long"
-  , whenMaybe (length (drop 50 name) > 0) $
+  , whenMaybe (T.length (T.drop 50 name) > 0) $
       pure $ pure "Name must not contain more than 50 characters long"
   ]
 
 -- @TODO: check passwords match
-validatePass :: Monad m => String -> m (D.Result [String] String)
-validatePass pass = validateM pass
-  [ whenMaybe (length (drop 4 pass) == 0) $
+validatePass :: Monad m => T.Text -> m (D.Result [T.Text] T.Text)
+validatePass (trim -> pass) = validateM pass
+  [ whenMaybe (T.length (T.drop 4 pass) == 0) $
       pure $ pure "Password must be at least 4 characters long"
-  , whenMaybe (length (drop 64 pass) > 0) $
+  , whenMaybe (T.length (T.drop 64 pass) > 0) $
       pure $ pure "Password must not contain more than 64 characters long"
   ]
 
 
-validateMail :: Monad m => String -> m (D.Result [String] String)
-validateMail email = validateM email
-  [ whenMaybe (isValidEmail $ T.pack email) $
+validateMail :: Monad m => T.Text -> m (D.Result [T.Text] T.Text)
+validateMail (trim -> email) = validateM email
+  [ whenMaybe (isValidEmail email) $
       pure $ pure "Invalid email address."
   ]
 
@@ -92,30 +92,30 @@ registerFormView view =
 
 data Signin
    = Signin
-   { sinLogin :: String
-   , sinPassword :: String
+   { sinLogin :: T.Text
+   , sinPassword :: T.Text
    } deriving (Show)
 
 signinForm :: Monad m => D.Form (H.Html ()) m Signin
 signinForm = Signin
-    <$> "login"    .: D.validateM validateSigninName (D.string Nothing)
-    <*> "password" .: D.validateM validateSigninPass (D.string Nothing)
+    <$> "login"    .: D.validateM validateSigninName (D.text Nothing)
+    <*> "password" .: D.validateM validateSigninPass (D.text Nothing)
 
 -- @TODO: check against database
-validateSigninName :: Monad m => String -> m (D.Result (H.Html ()) String)
-validateSigninName name = renderErrs $ validateM name
-  [ whenMaybe (length (drop 1 name) == 0) $
+validateSigninName :: Monad m => T.Text -> m (D.Result (H.Html ()) T.Text)
+validateSigninName (trim -> name) = renderErrs $ validateM name
+  [ whenMaybe (T.length (T.drop 1 name) == 0) $
       pure $ pure "Name must be at least 2 characters long"
-  , whenMaybe (length (drop 50 name) > 0) $
+  , whenMaybe (T.length (T.drop 50 name) > 0) $
       pure $ pure "Name must not contain more than 50 characters long"
   ]
 
 -- @TODO: check passwords match
-validateSigninPass :: Monad m => String -> m (D.Result (H.Html ()) String)
-validateSigninPass pass = renderErrs $ validateM pass
-  [ whenMaybe (length (drop 4 pass) == 0) $
+validateSigninPass :: Monad m => T.Text -> m (D.Result (H.Html ()) T.Text)
+validateSigninPass (trim -> pass) = renderErrs $ validateM pass
+  [ whenMaybe (T.length (T.drop 4 pass) == 0) $
       pure $ pure "Password must be at least 4 characters long"
-  , whenMaybe (length (drop 64 pass) > 0) $
+  , whenMaybe (T.length (T.drop 64 pass) > 0) $
       pure $ pure "Password must not contain more than 64 characters long"
   ]
 
@@ -142,7 +142,7 @@ signinFormView view =
 {- | Utils
 -}
 
-validateM :: Monad m => String -> [m (Maybe String)] -> m (D.Result [String] String)
+validateM :: Monad m => T.Text -> [m (Maybe T.Text)] -> m (D.Result [T.Text] T.Text)
 validateM res list = do
   results <- catMaybes <$> sequence list
   if null results
@@ -154,6 +154,9 @@ whenMaybe predicate x
   | predicate = x
   | otherwise = pure Nothing
 
-renderErrs :: Monad m => m (D.Result [String] a) -> m (D.Result (H.Html ()) a)
+renderErrs :: Monad m => m (D.Result [T.Text] a) -> m (D.Result (H.Html ()) a)
 renderErrs =
   fmap $ D.resultMapError $ H.ul_ . mapM_ (H.li_ . H.toHtml)
+
+trim :: T.Text -> T.Text
+trim = T.reverse . T.dropWhile (==' ') . T.reverse . T.dropWhile (==' ')
