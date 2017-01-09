@@ -8,8 +8,8 @@ module Web.Gathering.Run where
 
 import Web.Gathering.Types
 import Web.Gathering.Config
-import Web.Gathering.Model
 import Web.Gathering.Database
+import Web.Gathering.HashPassword
 import qualified Web.Gathering.Forms.Sign as FS
 
 import Data.HVect
@@ -20,7 +20,7 @@ import Network.Wai.Handler.Warp (setPort, defaultSettings)
 import Network.Wai.Handler.WarpTLS (runTLS, tlsSettings)
 --import qualified Network.HTTP.Types.Status as Http
 import qualified Data.Text as T
-import qualified Data.ByteString.Char8 as BS
+import qualified Data.ByteString.Char8 as BSC
 
 import Hasql.Connection (Connection)
 import qualified Hasql.Session as Sql (run)
@@ -37,7 +37,7 @@ run :: IO ()
 run = do
   (config, cmd) <- parseArgs
   print (config, cmd)
-  let connstr = BS.pack $ cfgDbConnStr config
+  let connstr = BSC.pack $ cfgDbConnStr config
   spockCfg <- defaultSpockCfg EmptySession (PCConn $ hasqlPool connstr) (AppState config)
   case cmd of
     HTTP port ->
@@ -75,7 +75,7 @@ app = prehook baseHook $ do
   prehook authHook $ do
     get ("settings") $ do
       (user :: User) <- fmap findFirst getContext
-      text ("Hello " <> T.pack (userName user))
+      text ("Hello " <> userName user)
 
     get ("logout") $ do
       sess <- readSession
@@ -98,13 +98,17 @@ loginAction = do
       lucid $ formView Nothing view
     (view, Just FS.Signin{sinLogin, sinPassword}) -> do
       signinRes <-
-        runQuery $ Sql.run (getUserWithPass sinLogin sinPassword)
+        runQuery $ Sql.run (getUserLogin sinLogin)
       case signinRes of
         Right Nothing ->
-          lucid $ formView (pure $ p_ "Invalid user name/email or password.") view
-        Right (Just user) -> do
-          writeSession (SessionId (userId user))
-          text $ "Logged in as: " <> T.pack (userName user)
+          lucid $ formView (pure $ p_ "Invalid user name/email.") view
+        Right (Just (user, pass)) -> do
+          if verifyPassword (BSC.pack sinPassword) pass
+            then do
+              writeSession (SessionId (userId user))
+              text $ "Logged in as: " <> userName user
+            else
+              lucid $ formView (pure $ p_ "Invalid password.") view
         Left err -> do
           text $ T.pack (show err)
 

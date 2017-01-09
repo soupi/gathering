@@ -22,7 +22,7 @@ import Data.Functor.Contravariant (contramap)
 import Data.Monoid
 import Data.Int (Int32)
 import Data.List (find)
-import Data.Maybe (mapMaybe, listToMaybe)
+import Data.Maybe (mapMaybe)
 
 -----------
 -- Query --
@@ -38,15 +38,14 @@ getUserById uid = Sql.query () $
     True
 
 -- | Find a user by matching either their username or email with a String and matching their password
-getUserWithPass :: String -> String -> Sql.Session (Maybe User)
-getUserWithPass (T.pack -> login) (BSC.pack -> pass) = Sql.query () $
+getUserLogin :: String -> Sql.Session (Maybe (User, BS.ByteString))
+getUserLogin (T.pack -> login) = Sql.query () $
   Sql.statement
-    "select user_id, user_name, user_email, user_isadmin, user_wants_updates from users where (user_name = $1 OR user_email = $2) AND user_password_hash = $3"
+    "select user_id, user_name, user_email, user_isadmin, user_wants_updates, user_password_hash from users where user_name = $1 OR user_email = $2"
     (  const login `contramap` SqlE.value SqlE.text
     <> const login `contramap` SqlE.value SqlE.text
-    <> const pass  `contramap` SqlE.value SqlE.bytea
     )
-    (SqlD.maybeRow decodeUser)
+    (SqlD.maybeRow ((,) <$> decodeUser <*> SqlD.value SqlD.bytea))
     True
 
 
@@ -121,10 +120,10 @@ getAttendantsForEvent event = do
 -------------------
 
 -- | Add a new user to the users table
-newUser :: Sql.Query (User, BS.ByteString, BS.ByteString) ()
+newUser :: Sql.Query (User, BS.ByteString) ()
 newUser =
   Sql.statement
-    "insert into users (user_name, user_email, user_isadmin, user_wants_updates, user_password_hash, user_password_salt) values ($1, $2, $3, $4, $5, $6)"
+    "insert into users (user_name, user_email, user_isadmin, user_wants_updates, user_password_hash) values ($1, $2, $3, $4, $5)"
     encodeNewUser
     SqlD.unit
     True
@@ -139,10 +138,10 @@ updateUser =
     True
 
 -- | Update an existing user in the users table including the password
-updateUserWithPassword :: Sql.Query (User, BS.ByteString, BS.ByteString) ()
+updateUserWithPassword :: Sql.Query (User, BS.ByteString) ()
 updateUserWithPassword =
   Sql.statement
-    "update users set user_name = $2, user_email = $3, user_isadmin = $4, user_wants_updates = $5, user_password_hash = $6, user_password_salt = $7 where user_id = $1"
+    "update users set user_name = $2, user_email = $3, user_isadmin = $4, user_wants_updates = $5, user_password_hash = $6 where user_id = $1"
     encodeExistingUserWithPassword
     SqlD.unit
     True
@@ -179,19 +178,18 @@ upsertAttendant =
 -- Encoding --
 --------------
 
--- | Encode a new User data type with password hash and salt for inserts
+-- | Encode a new User data type with password hash for inserts
 -- | as a database row in the users table
 -- |
 -- | Warning: When changing this `newUser` should change as well
-encodeNewUser :: SqlE.Params (User, BS.ByteString, BS.ByteString)
+encodeNewUser :: SqlE.Params (User, BS.ByteString)
 encodeNewUser =
-    contramap (userId . fst3) (SqlE.value SqlE.int4)
- <> contramap (T.pack . userName . fst3) (SqlE.value SqlE.text)
- <> contramap (T.pack . userEmail . fst3) (SqlE.value SqlE.text)
- <> contramap (userIsAdmin . fst3) (SqlE.value SqlE.bool)
- <> contramap (userWantsUpdates . fst3) (SqlE.value SqlE.bool)
- <> contramap snd3 (SqlE.value SqlE.bytea)
- <> contramap trd3 (SqlE.value SqlE.bytea)
+    contramap (userId . fst) (SqlE.value SqlE.int4)
+ <> contramap (userName . fst) (SqlE.value SqlE.text)
+ <> contramap (userEmail . fst) (SqlE.value SqlE.text)
+ <> contramap (userIsAdmin . fst) (SqlE.value SqlE.bool)
+ <> contramap (userWantsUpdates . fst) (SqlE.value SqlE.bool)
+ <> contramap snd (SqlE.value SqlE.bytea)
 
 -- | Encode an existing User data type for updates
 -- | as a database row in the users table
@@ -200,24 +198,23 @@ encodeNewUser =
 encodeExistingUser :: SqlE.Params User
 encodeExistingUser =
     contramap userId (SqlE.value SqlE.int4)
- <> contramap (T.pack . userName) (SqlE.value SqlE.text)
- <> contramap (T.pack . userEmail) (SqlE.value SqlE.text)
+ <> contramap userName (SqlE.value SqlE.text)
+ <> contramap userEmail (SqlE.value SqlE.text)
  <> contramap userIsAdmin (SqlE.value SqlE.bool)
  <> contramap userWantsUpdates (SqlE.value SqlE.bool)
 
--- | Encode an existing User data type with password hash and salt for password updates
+-- | Encode an existing User data type with password hash for password updates
 -- | as a database row in the users table
 -- |
 -- | Warning: When changing this `updateUser` should change as well
-encodeExistingUserWithPassword :: SqlE.Params (User, BS.ByteString, BS.ByteString)
+encodeExistingUserWithPassword :: SqlE.Params (User, BS.ByteString)
 encodeExistingUserWithPassword =
-    contramap (userId . fst3) (SqlE.value SqlE.int4)
- <> contramap (T.pack . userName . fst3) (SqlE.value SqlE.text)
- <> contramap (T.pack . userEmail . fst3) (SqlE.value SqlE.text)
- <> contramap (userIsAdmin . fst3) (SqlE.value SqlE.bool)
- <> contramap (userWantsUpdates . fst3) (SqlE.value SqlE.bool)
- <> contramap snd3 (SqlE.value SqlE.bytea)
- <> contramap trd3 (SqlE.value SqlE.bytea)
+    contramap (userId . fst) (SqlE.value SqlE.int4)
+ <> contramap (userName . fst) (SqlE.value SqlE.text)
+ <> contramap (userEmail . fst) (SqlE.value SqlE.text)
+ <> contramap (userIsAdmin . fst) (SqlE.value SqlE.bool)
+ <> contramap (userWantsUpdates . fst) (SqlE.value SqlE.bool)
+ <> contramap snd (SqlE.value SqlE.bytea)
 
 
 
@@ -226,9 +223,9 @@ encodeExistingUserWithPassword =
 -- | Warning: When changing this `newEvent` should change as well
 encodeNewEvent :: SqlE.Params Event
 encodeNewEvent =
-    contramap (T.pack . eventName) (SqlE.value SqlE.text)
- <> contramap (T.pack . eventDesc) (SqlE.value SqlE.text)
- <> contramap (T.pack . eventLocation) (SqlE.value SqlE.text)
+    contramap eventName (SqlE.value SqlE.text)
+ <> contramap eventDesc (SqlE.value SqlE.text)
+ <> contramap eventLocation (SqlE.value SqlE.text)
  <> contramap eventDateTime (SqlE.value SqlE.timestamptz)
  <> contramap eventDuration (SqlE.value SqlE.interval)
 
@@ -238,9 +235,9 @@ encodeNewEvent =
 encodeExistingEvent :: SqlE.Params Event
 encodeExistingEvent =
     contramap eventId (SqlE.value SqlE.int4)
- <> contramap (T.pack . eventName) (SqlE.value SqlE.text)
- <> contramap (T.pack . eventDesc) (SqlE.value SqlE.text)
- <> contramap (T.pack . eventLocation) (SqlE.value SqlE.text)
+ <> contramap eventName (SqlE.value SqlE.text)
+ <> contramap eventDesc (SqlE.value SqlE.text)
+ <> contramap eventLocation (SqlE.value SqlE.text)
  <> contramap eventDateTime (SqlE.value SqlE.timestamptz)
  <> contramap eventDuration (SqlE.value SqlE.interval)
 
@@ -263,8 +260,8 @@ encodeAttendant =
 decodeUser :: SqlD.Row User
 decodeUser = User
   <$> SqlD.value SqlD.int4 -- id
-  <*> fmap T.unpack (SqlD.value SqlD.text) -- name
-  <*> fmap T.unpack (SqlD.value SqlD.text) -- email
+  <*> SqlD.value SqlD.text -- name
+  <*> SqlD.value SqlD.text -- email
   <*> SqlD.value SqlD.bool -- is admin
   <*> SqlD.value SqlD.bool -- wants updates
 
@@ -272,9 +269,9 @@ decodeUser = User
 decodeEvent :: SqlD.Row Event
 decodeEvent = Event
   <$> SqlD.value SqlD.int4 -- id
-  <*> fmap T.unpack (SqlD.value SqlD.text) -- name
-  <*> fmap T.unpack (SqlD.value SqlD.text) -- description
-  <*> fmap T.unpack (SqlD.value SqlD.text) -- location
+  <*> SqlD.value SqlD.text -- name
+  <*> SqlD.value SqlD.text -- description
+  <*> SqlD.value SqlD.text -- location
   <*> SqlD.value SqlD.timestamptz -- time and date
   <*> SqlD.value SqlD.interval -- duration
 

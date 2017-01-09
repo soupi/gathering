@@ -4,8 +4,7 @@ create table users (
     user_email text unique not null,
     user_isadmin bool not null,
     user_wants_updates bool not null,
-    user_password_hash bytea not null,
-    user_password_salt bytea not null
+    user_password_hash bytea not null
 );
 
 create table events (

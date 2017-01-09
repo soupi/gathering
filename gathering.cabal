@@ -17,6 +17,7 @@ library
   hs-source-dirs:      src
   exposed-modules:     Web.Gathering
                        Web.Gathering.Database
+                       Web.Gathering.HashPassword
                        Web.Gathering.Model
                        Web.Gathering.Types
                        Web.Gathering.Utils
@@ -38,11 +39,10 @@ library
                      -- tls support
                      , warp
                      , warp-tls
-                     -- users and auth handling
-                     , users
-                     , cryptonite
-                     , bcrypt
+                     -- auth routing
                      , hvect
+                     -- password hashing
+                     , pwstore-purehaskell
                      -- Forms handling
                      , digestive-functors
                      , digestive-functors-lucid

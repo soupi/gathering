@@ -6,14 +6,15 @@ module Web.Gathering.Model where
 import Data.Int (Int32)
 import Data.Time (UTCTime, DiffTime)
 import Data.Map.Strict (Map)
+import Data.Text (Text)
 
 type UserId = Int32
 
 -- | Describing a user of the system
 data User = User
   { userId :: Int32
-  , userName :: String
-  , userEmail :: String
+  , userName :: Text
+  , userEmail :: Text
   , userIsAdmin :: Bool
   , userWantsUpdates :: Bool
   }
@@ -22,9 +23,9 @@ data User = User
 -- | Describing a gathering event
 data Event = Event
   { eventId :: Int32
-  , eventName :: String
-  , eventDesc :: String
-  , eventLocation :: String
+  , eventName :: Text
+  , eventDesc :: Text
+  , eventLocation :: Text
   , eventDateTime :: UTCTime
   , eventDuration :: DiffTime
   }
