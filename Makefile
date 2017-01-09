@@ -13,9 +13,9 @@ initdb:
 build:
 	stack build;
 
-.PHONY: watch
+.PHONY: dev
 
-watch:
+dev:
 	stack build --fast --file-watch
 
 
