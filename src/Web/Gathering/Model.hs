@@ -20,6 +20,13 @@ data User = User
   }
   deriving (Show, Read, Eq, Ord)
 
+-- | Describing a user session
+data UserSession = UserSession
+  { usUserId :: Int32
+  , usValidUntil :: UTCTime
+  }
+  deriving (Show, Eq, Ord)
+
 -- | Describing a gathering event
 data Event = Event
   { eventId :: Int32

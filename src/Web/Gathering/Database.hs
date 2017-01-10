@@ -28,14 +28,14 @@ import Data.Maybe (mapMaybe)
 -- Query --
 -----------
 
--- | Get a user from the users table with a specific id
-getUserById :: UserId -> Sql.Session (Maybe User)
-getUserById uid = Sql.query uid $
-  Sql.statement
-    "select user_id, user_name, user_email, user_isadmin, user_wants_updates from users where user_id = $1"
-    (SqlE.value SqlE.int4)
-    (SqlD.maybeRow decodeUser)
-    True
+-- -- | Get a user from the users table with a specific id
+-- getUserById :: UserId -> Sql.Session (Maybe User)
+-- getUserById uid = Sql.query uid $
+--   Sql.statement
+--     "select user_id, user_name, user_email, user_isadmin, user_wants_updates from users where user_id = $1"
+--     (SqlE.value SqlE.int4)
+--     (SqlD.maybeRow decodeUser)
+--     True
 
 -- | Find a user by matching either their username or email
 getUserLogin :: T.Text -> T.Text -> Sql.Session (Maybe (User, BS.ByteString))
@@ -47,6 +47,16 @@ getUserLogin name email = Sql.query (name, email) $
     )
     (SqlD.maybeRow ((,) <$> decodeUser <*> SqlD.value SqlD.bytea))
     True
+
+-- | Get a user from the users table from a session
+getUserBySession :: UserId -> Sql.Session (Maybe User)
+getUserBySession uid = Sql.query uid $
+  Sql.statement
+    "select users.user_id, users.user_name, users.user_email, users.user_isadmin, users.user_wants_updates from users join sessions on users.user_id = sessions.user_id and sessions.valid_until > now() and users.user_id = $1"
+    (SqlE.value SqlE.int4)
+    (SqlD.maybeRow decodeUser)
+    True
+
 
 -- | Get users from the users table
 getUsers :: Sql.Session [User]
@@ -119,6 +129,7 @@ getAttendantsForEvent event = do
 -------------------
 
 -- | Add a new user to the users table
+
 newUser :: User -> BS.ByteString -> Sql.Session User
 newUser user pass = do
   Sql.query (user, pass) $
@@ -173,6 +184,15 @@ newEvent event = Sql.query event $
     SqlD.unit
     True
 
+-- | Add or update a user session in the sessions table
+upsertUserSession :: UserId -> Sql.Session ()
+upsertUserSession uid = Sql.query uid $
+  Sql.statement
+    "insert into sessions values ($1, now() + '2 weeks') on conflict (user_id) do update set valid_until = EXCLUDED.valid_until"
+    (SqlE.value SqlE.int4)
+    SqlD.unit
+    True
+
 -- | Update an existing event in the events table
 updateEvent :: Event -> Sql.Session ()
 updateEvent event = Sql.query event $
@@ -186,10 +206,20 @@ updateEvent event = Sql.query event $
 upsertAttendant :: Event -> Attendant -> Sql.Session ()
 upsertAttendant event att = Sql.query (event, att) $
   Sql.statement
-    "insert into users values ($1, $2, $3, $4) on conflict (event_id, user_id) do update set attending = EXCLUDED.attending, follow_changes = EXCLUDED.follow_changes"
+    "insert into attendants values ($1, $2, $3, $4) on conflict (event_id, user_id) do update set attending = EXCLUDED.attending, follow_changes = EXCLUDED.follow_changes"
     encodeAttendant
     SqlD.unit
     True
+
+-- | Kill a session for a user
+killSession :: UserId -> Sql.Session ()
+killSession uid = Sql.query uid $
+  Sql.statement
+    "delete from sessions where user_id = $1"
+    (SqlE.value SqlE.int4)
+    SqlD.unit
+    True
+
 
 --------------
 -- Encoding --
@@ -231,7 +261,6 @@ encodeExistingUserWithPassword =
  <> contramap (userIsAdmin . fst) (SqlE.value SqlE.bool)
  <> contramap (userWantsUpdates . fst) (SqlE.value SqlE.bool)
  <> contramap snd (SqlE.value SqlE.bytea)
-
 
 
 -- | Encode an Event data type for inserts as a database row in the events table
@@ -280,6 +309,12 @@ decodeUser = User
   <*> SqlD.value SqlD.text -- email
   <*> SqlD.value SqlD.bool -- is admin
   <*> SqlD.value SqlD.bool -- wants updates
+
+-- | Decode a UserSession data type as a row from the sessions table
+decodeUserSession :: SqlD.Row UserSession
+decodeUserSession = UserSession
+  <$> SqlD.value SqlD.int4 -- user id
+  <*> SqlD.value SqlD.timestamptz -- valid until
 
 -- | Decode an Event data type as a row from the events table
 decodeEvent :: SqlD.Row Event

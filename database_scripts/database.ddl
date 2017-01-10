@@ -23,3 +23,9 @@ create table attendants (
     follow_changes bool not null,
     primary key (event_id, user_id)
 );
+
+create table sessions (
+    user_id integer references users(user_id),
+    valid_until timestamptz not null,
+    primary key (user_id)
+);

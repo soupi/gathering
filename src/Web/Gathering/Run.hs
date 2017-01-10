@@ -69,8 +69,8 @@ app = prehook baseHook $ do
     getpost ("login") (redirect "signin")
 
   get root $ maybeUser $ \case
-    Just _ ->
-      text "Hello User!"
+    Just (User { userName }) ->
+      text $ "Hello " <> userName <> "!"
     Nothing ->
       text "Hello World!"
 
@@ -83,13 +83,14 @@ app = prehook baseHook $ do
       (user :: User) <- fmap findFirst getContext
       text ("Hello " <> userName user)
 
-    get ("singout") $ do
+    get ("signout") $ do
       sess <- readSession
       case sess of
         EmptySession ->
           text "Not logged in."
-        SessionId _ -> do
+        SessionId uid -> do
           writeSession EmptySession
+          void $ runQuery $ Sql.run $ killSession uid -- maybe log this?
           text "Logged out."
 
     get ("logout") $ redirect "signout"
@@ -105,9 +106,8 @@ signinAction = do
     (view, Nothing) ->
       lucid $ formView Nothing view
     (view, Just FS.Signin{sinLogin, sinPassword}) -> do
-      signinRes <-
-        runQuery $ Sql.run (getUserLogin sinLogin sinLogin)
-      case signinRes of
+      signInRes <- runQuery $ Sql.run (getUserLogin sinLogin sinLogin)
+      case signInRes of
         Left err -> do
           text $ T.pack (show err)
         Right Nothing ->
@@ -115,8 +115,8 @@ signinAction = do
         Right (Just (user, pass)) -> do
           if verifyPassword (T.encodeUtf8 sinPassword) pass
             then do
-              writeSession (SessionId (userId user))
-              text $ "Logged in as: " <> userName user
+              makeSession (userId user) $
+                text $ "Logged in as: " <> userName user
             else
               lucid $ formView (pure $ p_ "Invalid password.") view
 
@@ -149,9 +149,19 @@ signupAction = do
             Left err ->
               text $ T.pack (show err)
             Right nUser -> do
-              writeSession (SessionId (userId nUser))
-              text $ "Success! Now logged in as: " <> userName nUser
+              makeSession (userId nUser) $
+                text $ "Success! Now logged in as: " <> userName nUser
 
+makeSession :: (ListContains n IsGuest xs, NotInList User xs ~ 'True)
+            => UserId -> Action (HVect xs) () -> Action (HVect xs) ()
+makeSession uid act = do
+  sessRes <- runQuery $ Sql.run $ upsertUserSession uid
+  case sessRes of
+    Left err -> do
+      text $ T.pack (show err)
+    Right _ -> do
+      writeSession (SessionId uid)
+      act
 
 -----------
 -- Hooks --
@@ -200,7 +210,7 @@ maybeUser action = do
       action Nothing
     SessionId uid -> do
       emUser <-
-        runQuery $ Sql.run (getUserById uid)
+        runQuery $ Sql.run (getUserBySession uid)
       case emUser of
         Left err ->
           text $ T.pack $ show err
