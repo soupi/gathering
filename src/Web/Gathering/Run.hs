@@ -1,4 +1,7 @@
-{- | The entry point to the application
+{- | The entry point to the application.
+
+It will configure the app by parsing the command line arguments
+and will execute the app according to command
 
 -}
 
@@ -11,16 +14,12 @@ module Web.Gathering.Run where
 import Web.Gathering.Types
 import Web.Gathering.Config
 import Web.Gathering.Database
-import Web.Gathering.Auth
+import Web.Gathering.Router
 
-import Data.HVect
-import Data.Monoid
 import Control.Monad (void)
 import Control.Concurrent (forkIO)
 import Network.Wai.Handler.Warp (setPort, defaultSettings)
 import Network.Wai.Handler.WarpTLS (runTLS, tlsSettings)
---import qualified Network.HTTP.Types.Status as Http
-import qualified Data.Text as T
 import qualified Data.ByteString.Char8 as BSC
 
 import Hasql.Connection (Connection)
@@ -28,6 +27,13 @@ import Hasql.Connection (Connection)
 import Web.Spock
 import Web.Spock.Config
 
+
+-- | This is the entry point of the application
+--
+--   It will parse the arguments to get the configuration and will
+--   Initialize the application. Then it will run the app according
+--   To the command mode: http, https or both.
+--
 run :: IO ()
 run = do
   (config, cmd) <- parseArgs
@@ -43,6 +49,8 @@ run = do
       void $ forkIO $ runSpock port (spock spockCfg appRouter)
       runHttps spockCfg tls
 
+
+-- | Run the spock app with HTTPS
 runHttps :: SpockCfg Connection MySession AppState -> TLSConfig -> IO ()
 runHttps spockCfg tls = do
   spockApp <- spockAsApp (spock spockCfg appRouter)
@@ -51,60 +59,3 @@ runHttps spockCfg tls = do
     (setPort (tlsPort tls) defaultSettings)
     spockApp
 
-
--- | This is the router of the app
---   It will direct which action should run
---   according to the route and app state
---
-appRouter :: App ()
-appRouter = prehook baseHook $ do
-
-  -- regular stuff
-
-  get root $ maybeUser $ \case
-    -- temp
-    Just (User { userName }) ->
-      text $ "Hello " <> userName <> "!"
-    Nothing ->
-      text "Hello World!"
-
-  get ("hello" <//> var) $ \name -> do
-    -- temp
-    AppState cfg <- getState
-    text ("Hello " <> name <> ", welcome to " <> T.pack (show $ cfgTitle cfg))
-
-  -- authentication
-
-  prehook guestOnlyHook $ do
-
-    getpost ("signup") signUpAction
-    getpost ("register") (redirect "signup")
-
-    getpost ("signin") signInAction
-    getpost ("login") (redirect "signin")
-
-  -- user relevant stuff
-
-  prehook authHook $ do
-    -- temp
-    get ("settings") $ do
-      (user :: User) <- fmap findFirst getContext
-      text ("Hello " <> userName user)
-
-    get ("signout") $
-      signOutAction
-
-    get ("logout") $
-      redirect "signout"
-
-
------------
--- Hooks --
------------
-
--- Hooks are the context of the app and provides us
--- a type safe way to check we don't call functions we are not supposed to
--- call. For example, Only guests should be able to sign-in or sign-up
-
-baseHook :: Action () (HVect '[])
-baseHook = return HNil
