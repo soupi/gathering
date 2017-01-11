@@ -1,4 +1,10 @@
 {- | Module describing the database interaction
+
+functions that return `Session <result>` can be run with
+`Web.Spock.runQuery . Hasql.Session.run`
+
+Queries and Insert/Upsert queries are the interesting ones.
+
 -}
 
 module Web.Gathering.Database where
@@ -28,14 +34,14 @@ import Data.Maybe (mapMaybe)
 -- Query --
 -----------
 
--- -- | Get a user from the users table with a specific id
--- getUserById :: UserId -> Sql.Session (Maybe User)
--- getUserById uid = Sql.query uid $
---   Sql.statement
---     "select user_id, user_name, user_email, user_isadmin, user_wants_updates from users where user_id = $1"
---     (SqlE.value SqlE.int4)
---     (SqlD.maybeRow decodeUser)
---     True
+-- | Get a user from the users table with a specific id
+getUserById :: UserId -> Sql.Session (Maybe User)
+getUserById uid = Sql.query uid $
+  Sql.statement
+    "select user_id, user_name, user_email, user_isadmin, user_wants_updates from users where user_id = $1"
+    (SqlE.value SqlE.int4)
+    (SqlD.maybeRow decodeUser)
+    True
 
 -- | Find a user by matching either their username or email
 getUserLogin :: T.Text -> T.Text -> Sql.Session (Maybe (User, BS.ByteString))
@@ -184,7 +190,7 @@ newEvent event = Sql.query event $
     SqlD.unit
     True
 
--- | Add or update a user session in the sessions table
+-- | Add or update a user session in the sessions table. Set to expire after 2 weeks
 upsertUserSession :: UserId -> Sql.Session ()
 upsertUserSession uid = Sql.query uid $
   Sql.statement

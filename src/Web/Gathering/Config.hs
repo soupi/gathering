@@ -1,4 +1,21 @@
--- | Handle the configuration of the app
+{- | Handle the configuration of the app
+
+We'll use the functions defined in this module to parse
+command line arguments and config files to provide the configuration
+for this program, the configuration contains:
+
+- Command: how to run the app: http, https or both
+- AppConfig: configuration for the app which contains
+    - Title
+    - Description
+    - DB connection string
+
+Use `parseArgs` at the start of the program to get the configuration.
+from the command line arguments
+
+The defaults are defined in defaultConfig
+
+-}
 
 module Web.Gathering.Config
   ( parseArgs
@@ -18,6 +35,8 @@ import qualified Data.Configurator as C
 --   A configuration to run spock
 --
 --   May throw an error on bad configuration file or arguments
+--
+--   This is all you need from this module basically
 parseArgs :: IO (AppConfig, Command)
 parseArgs = do
   args <- execParser paramsParserInfo

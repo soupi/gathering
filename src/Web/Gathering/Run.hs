@@ -1,4 +1,6 @@
--- | Run app according to configuration
+{- | The entry point to the application
+
+-}
 
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE DataKinds #-}

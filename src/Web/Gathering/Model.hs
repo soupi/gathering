@@ -1,4 +1,15 @@
 {- | Module describing the model for the application
+
+In this application we want to be able to present users of a list of events
+they can mark if they want to attend or not.
+
+- A User is a definition of a user of the system
+- An Event is an event presented by the admins of the website
+- An attendant is a relation between users and events, describing
+  whether a user is going to attend the event or nothing
+
+- UserSession is for managing the session of a user on the website
+
 -}
 
 module Web.Gathering.Model where
@@ -19,13 +30,6 @@ data User = User
   , userWantsUpdates :: Bool
   }
   deriving (Show, Read, Eq, Ord)
-
--- | Describing a user session
-data UserSession = UserSession
-  { usUserId :: Int32
-  , usValidUntil :: UTCTime
-  }
-  deriving (Show, Eq, Ord)
 
 -- | Describing a gathering event
 data Event = Event
@@ -48,3 +52,11 @@ data Attendant = Attendant
 
 -- | A mapping from events to attendants
 type Attendants = Map Event [Attendant]
+
+
+-- | Describing a user session
+data UserSession = UserSession
+  { usUserId :: Int32
+  , usValidUntil :: UTCTime
+  }
+  deriving (Show, Eq, Ord)

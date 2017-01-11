@@ -1,3 +1,8 @@
+{- | Html templates and pages using Lucid
+
+-}
+
+
 module Web.Gathering.Html where
 
 import qualified Lucid as L
@@ -6,8 +11,9 @@ import Lucid.Html5
 import Web.Gathering.Model
 import Web.Gathering.Utils
 
+type Html = L.Html ()
 
-template :: String -> L.Html () -> L.Html () -> L.Html () -> L.Html ()
+template :: String -> Html -> Html -> Html -> Html
 template title header nav body =
   html_ $ do
     head_ $ do
@@ -22,9 +28,9 @@ template title header nav body =
           "Powered by "
           a_ [href_ "https://gitlab.com/gilmi/gathering"] "Gathering"
 
-main :: String -> L.Html () -> L.Html () -> L.Html () -> L.Html ()
+main :: String -> Html -> Html -> Html -> Html
 main title header nav body = undefined
 
-signin :: L.Html ()
+signin :: Html
 signin = do
   h1_ "Login"
