@@ -23,7 +23,9 @@ library
                        Web.Gathering.Utils
                        Web.Gathering.Config
                        Web.Gathering.Run
+                       Web.Gathering.Auth
                        Web.Gathering.Forms.Sign
+                       Web.Gathering.Html
 
   --other-modules:       Web.Gathering
   ghc-options:         -Wall
