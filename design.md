@@ -183,7 +183,7 @@ create table new_users (
 
 ### Sessions
 
-Sessions will be saved in the `sessions` table and will be valid for 1 year.
+Sessions will be saved in the `sessions` table and will be valid for 1 month.
 
 ```sql
 create table sessions (

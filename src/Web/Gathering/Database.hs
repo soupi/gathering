@@ -190,11 +190,11 @@ newEvent event = Sql.query event $
     SqlD.unit
     True
 
--- | Add or update a user session in the sessions table. Set to expire after 1 year
+-- | Add or update a user session in the sessions table. Set to expire after 1 month
 upsertUserSession :: UserId -> Sql.Session ()
 upsertUserSession uid = Sql.query uid $
   Sql.statement
-    "insert into sessions values ($1, now() + '1 year') on conflict (user_id) do update set valid_until = EXCLUDED.valid_until"
+    "insert into sessions values ($1, now() + '1 month') on conflict (user_id) do update set valid_until = EXCLUDED.valid_until"
     (SqlE.value SqlE.int4)
     SqlD.unit
     True
