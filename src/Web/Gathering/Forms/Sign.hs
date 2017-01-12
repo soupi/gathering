@@ -32,6 +32,17 @@ import Text.Html.Email.Validate (isValidEmail)
 -- Sign-up --
 -------------
 
+{- We want the user to fill their:
+
+- username
+- email
+- password + password confirmation
+- if they want notifications on updates
+
+Will will also include an invisible honey pot to try and detect spam bots.
+
+-}
+
 -- | Definition of a signup data type
 data Signup
    = Signup
@@ -40,6 +51,7 @@ data Signup
    , supPassword :: T.Text
    , supPasswordConfirm :: T.Text
    , supWantNotifications :: Bool
+   , supSpamHoneyPot :: T.Text
    } deriving (Show)
 
 -- | Definition of a form and it's validation
@@ -50,6 +62,7 @@ signupForm = Signup
     <*> "password1" .: D.validateM validatePass (fmap (fmap trim) D.text Nothing)
     <*> "password2" .: D.text Nothing
     <*> "get_notifications" .: D.bool Nothing
+    <*> "shp" .: D.text Nothing
 
 -- | trim and check name length for now
 validateName :: Monad m => T.Text -> m (D.Result Html T.Text)
@@ -104,6 +117,8 @@ signupFormView view =
       D.inputCheckbox "get_notifications" view
       D.label         "get_notifications" view "Get notifications by mail"
 
+    H.div_ $ do
+      D.inputHidden "shp" view
 
     D.inputSubmit "Sign-up"
 

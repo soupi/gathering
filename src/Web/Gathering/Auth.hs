@@ -143,7 +143,13 @@ signUpAction = do
     (view, Nothing) ->
       lucid $ formView Nothing view
 
-    (view, Just (FS.Signup uname umail pass passConfirm notify)) -> do
+    -- Case for bots
+    (_, Just (FS.Signup { supUsername, supSpamHoneyPot }))
+      | not (T.null supSpamHoneyPot) -> do
+        text $ "Success! Now logged in as: " <> supUsername -- gotcha!
+
+    -- Case for humans
+    (view, Just (FS.Signup uname umail pass passConfirm notify _)) -> do
       -- Query the db for a match for the login
       -- will check if the users' requested name or email already exists
       maybeUserAndPass <- runQuery $ Sql.run (getUserLogin uname umail)
