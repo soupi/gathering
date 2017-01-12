@@ -109,7 +109,95 @@ type Attendants = Map Event [Attendant]
 
 ```
 
+### Event notifications
 
+The content of the `events` table will be the one displayed in website.
+Event notifications will be automatic processes that sends notifications
+to those who ask. There are two kinds of notifications:
+
+- Notifications about new events
+- Reminders
+
+Notifications of new events and event edits will be sent to all users that
+want updates and did not mark 'will not attend the event'.
+
+Reminders will be sent only to those who marked 'will attend the event'.
+
+In the future we might extend the ability of each user to choose when to get events
+and for what.
+
+#### New events
+
+New events will be upserted into two tables: the `events` table and the `new_events` table.
+
+```sql
+create table new_events (
+    event_id integer references events(event_id),
+    is_edit bool not null,
+    modification_time timestamptz not null,
+    primary key (event_id)
+);
+```
+
+A worker will scan the table every 15 minutes and will send notifications
+about all events that exists in this table more than 15 minutes
+to all users that wants to get notifications about events.
+After notifying about these events, the worker will delete them from the new_events table.
+
+#### Reminders
+
+A worker will scan the events list every 4 hours for events
+that are going to occur between the next 22-28 hours and will notify those
+who are going to attend the event.
+
+### Email verification
+
+New signups will be inserted into a `new_users` table upon registration
+
+```sql
+create table new_users (
+    verification_rand int not null,
+    user_name text unique not null,
+    user_email citext unique not null,
+    user_isadmin bool not null,
+    user_wants_updates bool not null,
+    user_password_hash bytea not null,
+    expiration_date timestamptz not null
+);
+
+```
+
+- The server will make sure not to create duplicate entries in new_users,
+  but will delete expired entries and will insert new ones if needed.
+
+- An email with the parameters `/verify-user/:key/:email` will be sent
+  to the users' e-mail upon sign-up.
+
+- When a user tries to access this page the server will verify
+  the parameters in the `new_users` table and check the expiration date.
+
+- If verified, the entry will be moved from `new_users` to `users`
+  and will be deleted from `new_users`.
+
+- If expired, the entry will be deleted from the `new_users` table.
+
+### Sessions
+
+Sessions will be saved in the `sessions` table and will be valid for 1 year.
+
+```sql
+create table sessions (
+    user_id integer references users(user_id),
+    valid_until timestamptz not null,
+    primary key (user_id)
+);
+```
+
+The server will add a session when the user logs in and will delete it when they sign out.
+
+### Cleaners
+
+A worker will run once a day and will clean expired sessions and new_users requests.
 
 
 ## Pages
@@ -143,6 +231,7 @@ type Attendants = Map Event [Attendant]
 - Date, time and duration - UTC time + your time
 - Description
 - Attend? (Yes/No) -> link to Signup/Signin if not logged in 
+- Edit (For admin)
 
 ### Signin
 
@@ -164,3 +253,21 @@ type Attendants = Map Event [Attendant]
 ### Mail verification
 
 - Success!
+
+### Settings - regular user
+
+- Change password
+- Change mail
+- Change notification settings
+
+### Control Panel - Admin
+
+- Give other users admin rights
+
+### Create event - Admin
+
+- Name
+- Description
+- Time and date
+- Location
+- Duration
