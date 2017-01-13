@@ -62,19 +62,19 @@ authHook =
     oldCtx <- getContext
     case mUser of
       Nothing ->
-        text "Unknown user. Sign-in first!"
+        redirect "signin"
       Just val ->
         pure (val :&: oldCtx)
 
 -- | Checks that the user is an admin.
 --   If they aren't it will display an error message
-adminHook :: ListContains n (UserId, User) xs => Action (HVect xs) (HVect (IsAdmin ': xs))
+adminHook :: ListContains n User xs => Action (HVect xs) (HVect (IsAdmin ': xs))
 adminHook = do
-  (_ :: UserId, user) <- fmap findFirst getContext
+  user <- fmap findFirst getContext
   oldCtx <- getContext
   if userIsAdmin user
     then pure (IsAdmin :&: oldCtx)
-    else text "You don't have enough rights to view this, sorry,"
+    else text "You don't have permissions to view this, sorry,"
 
 
 -------------

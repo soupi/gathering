@@ -60,7 +60,7 @@ event e = do
   L.h2_ (L.toHtml $ eventName e)
   L.ul_ $ mapM_ (L.li_ . L.toHtml)
     [ "Location: " <> eventLocation e
-    , "Date: "     <> pack (formatTime defaultTimeLocale "%T, %F (%Z)" $ eventDateTime e)
+    , "Date: "     <> pack (formatTime defaultTimeLocale "%F %H:%M (%Z)" $ eventDateTime e)
     , "Duration: " <> pack (show $ timeToTimeOfDay $ eventDuration e)
     ]
   L.div_ $ do

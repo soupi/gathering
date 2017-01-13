@@ -11,15 +11,12 @@ It will direct which action should run according to the route and app state.
 module Web.Gathering.Router where
 
 import Web.Gathering.Types
-import Web.Gathering.Config
 import Web.Gathering.Auth
 import Web.Gathering.Actions
 import Web.Gathering.Database
 
 import Data.HVect
 import Data.Monoid
-import qualified Data.Text as T
---import qualified Network.HTTP.Types.Status as Http
 
 import Web.Spock
 
@@ -50,25 +47,35 @@ appRouter = prehook baseHook $ do
 
   prehook guestOnlyHook $ do
 
-    getpost ("signup") signUpAction
-    getpost ("register") (redirect "signup")
+    getpost "signup"
+      signUpAction
+    getpost "register" $
+      redirect "signup"
 
-    getpost ("signin") signInAction
-    getpost ("login") (redirect "signin")
+    getpost "signin"
+      signInAction
+    getpost "login" $
+      redirect "signin"
 
-  -- user relevant stuff
+  -- signed-in users zone
 
   prehook authHook $ do
     -- temp
-    get ("settings") $ do
+    get "settings" $ do
       (user :: User) <- fmap findFirst getContext
       text ("Hello " <> userName user)
 
-    get ("signout") $
+    get "signout" $
       signOutAction
-
-    get ("logout") $
+    get "logout" $
       redirect "signout"
+
+    -- administrators zone
+
+    prehook adminHook $ do
+
+      getpost "new-event" $
+        newEventAction
 
 
 -----------
