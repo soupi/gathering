@@ -12,7 +12,6 @@ import Cheapskate (markdown, Options(..))
 --import Data.Time.Format
 import Data.Text (Text, pack)
 import Data.Monoid
-import Data.Map (Map, toList)
 import Data.Time
 
 import Web.Gathering.Model
@@ -36,13 +35,22 @@ template title header nav body =
           "Powered by "
           a_ [href_ "https://github.com/soupi/gathering"] "Gathering"
 
-main :: Text -> [(Event, [Attendant])] -> Html
-main title eventsAndAtts =
+renderEvents :: Text -> [(Event, [Attendant])] -> Html
+renderEvents title eventsAndAtts =
   template
     title
     (L.h1_ "Gathering!")
     (L.ul_ $ pure ())
     (events eventsAndAtts)
+
+noEvents :: Text -> Html
+noEvents title =
+  template
+    title
+    (L.h1_ "Gathering!")
+    (L.ul_ $ pure ())
+    (p_ "No available events!")
+
 
 ------------
 -- Events --
@@ -57,12 +65,16 @@ events =
 -- @TODO: render time properly and according to the users' timezone
 event :: Event -> Html
 event e = do
-  L.h2_ (L.toHtml $ eventName e)
+  L.h2_ $
+    L.a_ [href_ ("/event/" <> (pack . show $ eventId e))] $
+      L.toHtml $ eventName e
+
   L.ul_ $ mapM_ (L.li_ . L.toHtml)
     [ "Location: " <> eventLocation e
     , "Date: "     <> pack (formatTime defaultTimeLocale "%F %H:%M (%Z)" $ eventDateTime e)
     , "Duration: " <> pack (show $ timeToTimeOfDay $ eventDuration e)
     ]
+
   L.div_ $ do
     renderDoc $ markdown markdownOptions (eventDesc e)
 
@@ -72,6 +84,7 @@ attendants atts = do
   L.div_ $ do
     L.h2_ "Going"
     L.ul_ . mapM_ attendant . filter attendantAttending $ atts
+
   L.div_ $ do
     L.h2_ "Not Going"
     L.ul_ . mapM_ attendant . filter (not . attendantAttending) $ atts

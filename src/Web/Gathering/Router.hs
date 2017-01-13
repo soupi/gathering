@@ -15,8 +15,10 @@ import Web.Gathering.Auth
 import Web.Gathering.Actions
 import Web.Gathering.Database
 
+import Data.Int (Int32)
 import Data.HVect
 import Data.Monoid
+import Data.Maybe (maybeToList)
 
 import Web.Spock
 
@@ -35,13 +37,16 @@ appRouter = prehook baseHook $ do
   -- display events
 
   get root $ maybeUser $
-    displayNextEvents (take 5 <$> getFutureEvents)
+    displayEvents (take 5 <$> getFutureEvents)
 
-  get "/events" $ maybeUser $
-    displayNextEvents getFutureEvents
+  get "events" $ maybeUser $
+    displayEvents getFutureEvents
 
-  get "/past-events" $ maybeUser $
-    displayNextEvents getPastEvents
+  get "past-events" $ maybeUser $
+    displayEvents getPastEvents
+
+  get ("event" <//> var) $ \(eid :: Int32) ->
+    maybeUser $ displayEvents (maybeToList <$> getEventById eid)
 
   -- authentication
 

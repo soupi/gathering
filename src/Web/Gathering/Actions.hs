@@ -12,6 +12,7 @@ module Web.Gathering.Actions where
 
 import Web.Gathering.Auth (IsAdmin)
 import Web.Gathering.Types
+import Web.Gathering.Config
 import Web.Gathering.Database
 import Web.Gathering.Forms.EditEvent
 import qualified Web.Gathering.Html as Html
@@ -26,9 +27,9 @@ import Web.Spock
 import Web.Spock.Lucid
 import Web.Spock.Digestive
 
--- | Display the next events. allows the caller to specify which events to get from the database
-displayNextEvents :: (Sql.Session [Event]) -> Maybe User -> Action (HVect xs) ()
-displayNextEvents getEventsQuery _ = do
+-- | Display events. allows the caller to specify which events to get from the database and in which order.
+displayEvents :: (Sql.Session [Event]) -> Maybe User -> Action (HVect xs) ()
+displayEvents getEventsQuery _ = do
   mEventsAndAtts <- runQuery $ Sql.run $ do
     events <- getEventsQuery
     mapM (\e -> (e,) <$> getAttendantsForEvent e) events
@@ -37,9 +38,14 @@ displayNextEvents getEventsQuery _ = do
     Left err -> do
       text $ T.pack (show err)
 
-    Right eventsAA -> do
-      lucid $ Html.main "Gathering" eventsAA
+    -- case where there are no events to display
+    Right eventsAA | null eventsAA -> do
+      title <- cfgTitle . appConfig <$> getState
+      lucid $ Html.noEvents title
 
+    Right eventsAA -> do
+      title <- cfgTitle . appConfig <$> getState
+      lucid $ Html.renderEvents title eventsAA
 
 -- | Describe the action to do when a user wants to create a new event
 --

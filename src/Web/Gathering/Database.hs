@@ -100,6 +100,17 @@ getPastEvents = Sql.query () $
     (SqlD.rowsList decodeEvent)
     False
 
+-- | Get an event by id from the events table
+getEventById :: Int32 -> Sql.Session (Maybe Event)
+getEventById eid = Sql.query eid $
+  Sql.statement
+    "select * from events where event_id = $1"
+    (SqlE.value SqlE.int4)
+    (SqlD.maybeRow decodeEvent)
+    False
+
+
+
 -- | Get all attendants
 getAttendants :: Sql.Session Attendants
 getAttendants = do

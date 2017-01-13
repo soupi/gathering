@@ -29,6 +29,7 @@ module Web.Gathering.Config
 where
 
 import Options.Applicative
+import qualified Data.Text as T
 import qualified Data.Configurator as C
 
 -- | Will parse the arguments to the program and will produce
@@ -94,9 +95,9 @@ data Config = Config
 
 -- | Application Configuration
 data AppConfig = AppConfig
-  { cfgTitle :: String -- ^Title of the website
-  , cfgDesc  :: String -- ^Description of the website
-  , cfgDbConnStr :: String
+  { cfgTitle :: T.Text -- ^Title of the website
+  , cfgDesc  :: T.Text -- ^Description of the website
+  , cfgDbConnStr :: String -- ^db connection string
   }
   deriving (Show, Eq, Ord)
 
@@ -142,8 +143,8 @@ paramsParserInfo =
 
 config :: Parser AppConfig
 config = AppConfig
-  <$> ttl
-  <*> desc
+  <$> fmap T.pack ttl
+  <*> fmap T.pack desc
   <*> dbconnstr
   where
     ttl =
