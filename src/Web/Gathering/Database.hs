@@ -117,18 +117,15 @@ getAttendants = do
 
 
 -- | Get attendants for an event
-getAttendantsForEvent :: Event -> Sql.Session Attendants
+getAttendantsForEvent :: Event -> Sql.Session [Attendant]
 getAttendantsForEvent event = do
-  attendants <- Sql.query event $
+  Sql.query event $
     Sql.statement
-      "select * from attendants where event_id = $1"
+      "select u.user_id, u.user_name, u.user_email, u.user_isadmin, u.user_wants_updates, a.attending, a.follow_changes from attendants a inner join users u on a.user_id = u.user_id where a.event_id = $1"
       (eventId `contramap` SqlE.value SqlE.int4)
-      (SqlD.rowsList decodeAttendant)
+      (SqlD.rowsList decodeAttendantUser)
       True
-  users <- filter ((`elem` map snd4 attendants) . userId) <$> getUsers
-  let atts' = mapMaybe (fmap (fmap (:[])) . toAttendant [event] users) attendants -- @TODO: Danger! ignoring bad values
-  pure $
-    M.unionsWith (<>) $ map (M.fromList . (:[])) atts'
+
 
 -------------------
 -- Insert/Update --
@@ -332,13 +329,21 @@ decodeEvent = Event
   <*> SqlD.value SqlD.timestamptz -- time and date
   <*> SqlD.value SqlD.interval -- duration
 
--- | Decode an attendant data type as a row from the attendants table
+-- | Decode attendant data as a row from the attendants table
 decodeAttendant :: SqlD.Row (Int32, Int32, Bool, Bool)
 decodeAttendant = (,,,)
   <$> SqlD.value SqlD.int4 -- event id
   <*> SqlD.value SqlD.int4 -- user id
   <*> SqlD.value SqlD.bool -- attending
   <*> SqlD.value SqlD.bool -- follows changes
+
+-- | Decode an attendant data type as a row from the attendants table join with users table
+decodeAttendantUser :: SqlD.Row Attendant
+decodeAttendantUser = Attendant
+  <$> decodeUser
+  <*> SqlD.value SqlD.bool -- attending
+  <*> SqlD.value SqlD.bool -- follows changes
+
 
 -- | create an Attendant data type from events, users and attendants table data
 toAttendant :: [Event] -> [User] -> (Int32, Int32, Bool, Bool) -> Maybe (Event, Attendant)

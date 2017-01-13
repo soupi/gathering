@@ -25,7 +25,7 @@ import Web.Spock
 import Web.Spock.Lucid
 import Web.Spock.Digestive
 
-import Lucid
+import Lucid (p_)
 
 -----------
 -- Hooks --

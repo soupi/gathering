@@ -13,6 +13,8 @@ module Web.Gathering.Router where
 import Web.Gathering.Types
 import Web.Gathering.Config
 import Web.Gathering.Auth
+import Web.Gathering.Actions
+import Web.Gathering.Database
 
 import Data.HVect
 import Data.Monoid
@@ -33,19 +35,16 @@ import Web.Spock
 appRouter :: App ()
 appRouter = prehook baseHook $ do
 
-  -- regular stuff
+  -- display events
 
-  get root $ maybeUser $ \case
-    -- temp
-    Just (User { userName }) ->
-      text $ "Hello " <> userName <> "!"
-    Nothing ->
-      text "Hello World!"
+  get root $ maybeUser $
+    displayNextEvents (take 5 <$> getFutureEvents)
 
-  get ("hello" <//> var) $ \name -> do
-    -- temp
-    AppState cfg <- getState
-    text ("Hello " <> name <> ", welcome to " <> T.pack (show $ cfgTitle cfg))
+  get "/events" $ maybeUser $
+    displayNextEvents getFutureEvents
+
+  get "/past-events" $ maybeUser $
+    displayNextEvents getPastEvents
 
   -- authentication
 

@@ -25,6 +25,7 @@ library
                        Web.Gathering.Run
                        Web.Gathering.Router
                        Web.Gathering.Auth
+                       Web.Gathering.Actions
                        Web.Gathering.Forms.Sign
                        Web.Gathering.Html
 
@@ -67,7 +68,8 @@ library
                      -- time handling
                      , time
                      -- render event as markdown
-                     , markdown
+                     , cheapskate
+                     , cheapskate-lucid
                      -- utils
                      , containers
                      , bytestring
