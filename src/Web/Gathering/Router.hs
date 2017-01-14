@@ -11,8 +11,9 @@ It will direct which action should run according to the route and app state.
 module Web.Gathering.Router where
 
 import Web.Gathering.Types
-import Web.Gathering.Auth
-import Web.Gathering.Actions
+import Web.Gathering.Actions.Auth
+import Web.Gathering.Actions.Events
+import Web.Gathering.Actions.Attending
 import Web.Gathering.Database
 
 import Data.HVect
@@ -71,8 +72,18 @@ appRouter = prehook baseHook $ do
 
     get "signout" $
       signOutAction
+
     get "logout" $
       redirect "signout"
+
+    get ("event" <//> var <//> "attending") $ \(eid :: EventId) ->
+      attendingAction eid (Just True)
+
+    get ("event" <//> var <//> "not-attending") $ \(eid :: EventId) ->
+      attendingAction eid (Just False)
+
+    get ("event" <//> var <//> "remove-attending") $ \(eid :: EventId) ->
+      attendingAction eid Nothing
 
     -- administrators zone
 
@@ -81,9 +92,11 @@ appRouter = prehook baseHook $ do
       getpost ("event" <//> "new") $
         newEventAction
 
-
       getpost ("event" <//> var <//> "edit") $ \(eid :: EventId) ->
         editEventAction eid
+
+      get ("event" <//> var <//> "delete") $ \(eid :: EventId) ->
+        removeEventAction eid
 
 -----------
 -- Hooks --

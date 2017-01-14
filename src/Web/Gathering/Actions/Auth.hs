@@ -6,7 +6,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Web.Gathering.Auth where
+module Web.Gathering.Actions.Auth where
 
 import Web.Gathering.Types
 import Web.Gathering.Database
@@ -34,6 +34,9 @@ import Lucid (p_)
 -- Hooks are the context of the app and provides us
 -- a type safe way to check we don't call functions we are not supposed to
 -- call. For example, Only guests should be able to sign-in or sign-up
+--
+-- for more info consult this guide: https://www.spock.li/2015/04/19/type-safe_routing.html
+
 
 -- | A label for the guest only hook to mark that the user is not logged in
 data IsGuest = IsGuest
@@ -117,7 +120,7 @@ signInAction = do
           if verifyPassword (T.encodeUtf8 sinPassword) pass
             then do -- success - create the session for the user
               makeSession (userId user) $
-                text $ "Logged in as: " <> userName user
+                redirect "/"
             else
               lucid $ formView (pure $ p_ "Invalid password.") view
 
@@ -177,7 +180,7 @@ signUpAction = do
 
             Right nUser -> do
               makeSession (userId nUser) $
-                text $ "Success! Now logged in as: " <> userName nUser
+                redirect "/"
   where
     formView mErr view = do
       maybe (pure ()) id mErr
@@ -193,9 +196,7 @@ signOutAction = do
     SessionId uid -> do
       writeSession EmptySession
       void $ runQuery $ Sql.run $ killSession uid -- maybe log this?
-      text "Logged out."
-
-
+      redirect "/"
 
 -----------
 -- Utils --

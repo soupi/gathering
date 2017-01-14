@@ -190,12 +190,12 @@ updateUserWithPassword user pass = do
 
 
 -- | Add a new event to events table
-newEvent :: Event -> Sql.Session ()
+newEvent :: Event -> Sql.Session EventId
 newEvent event = Sql.query event $
   Sql.statement
-    "insert into events (event_name, event_description, event_location, event_datetime, event_duration) values ($1, $2, $3, $4, $5)"
+    "insert into events (event_name, event_description, event_location, event_datetime, event_duration) values ($1, $2, $3, $4, $5) returning event_id"
     encodeNewEvent
-    SqlD.unit
+    (SqlD.singleRow $ SqlD.value SqlD.int4)
     True
 
 -- | Add or update a user session in the sessions table. Set to expire after 1 month
@@ -216,12 +216,30 @@ updateEvent event = Sql.query event $
     SqlD.unit
     True
 
+-- | Remove an existing event from the events table
+removeEvent :: Event -> Sql.Session ()
+removeEvent event = Sql.query (eventId event) $
+  Sql.statement
+    "delete from events where event_id = $1"
+    (SqlE.value SqlE.int4)
+    SqlD.unit
+    True
+
 -- | Add or update an attendant for an event in the attendants table
 upsertAttendant :: Event -> Attendant -> Sql.Session ()
 upsertAttendant event att = Sql.query (event, att) $
   Sql.statement
     "insert into attendants values ($1, $2, $3, $4) on conflict (event_id, user_id) do update set attending = EXCLUDED.attending, follow_changes = EXCLUDED.follow_changes"
     encodeAttendant
+    SqlD.unit
+    True
+
+-- | Remove an attendant for an event from the attendants table
+removeAttendant :: Event -> User -> Sql.Session ()
+removeAttendant event user = Sql.query (event, user) $
+  Sql.statement
+    "delete from attendants where event_id = $1 and user_id = $2"
+    encodeEventUserIds
     SqlD.unit
     True
 
@@ -310,6 +328,14 @@ encodeAttendant =
  <> contramap (userId . attendantUser . snd) (SqlE.value SqlE.int4)
  <> contramap (attendantAttending . snd) (SqlE.value SqlE.bool)
  <> contramap (attendantFollowsChanges . snd) (SqlE.value SqlE.bool)
+
+-- | Encode an (Event, Attendant) data type as a database row in the attendants table
+-- |
+-- | Warning: When changing this `removeAttendant` should change as well
+encodeEventUserIds :: SqlE.Params (Event, User)
+encodeEventUserIds =
+    contramap (eventId . fst) (SqlE.value SqlE.int4)
+ <> contramap (userId  . snd) (SqlE.value SqlE.int4)
 
 --------------
 -- Decoding --

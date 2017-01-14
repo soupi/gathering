@@ -24,8 +24,10 @@ library
                        Web.Gathering.Config
                        Web.Gathering.Run
                        Web.Gathering.Router
-                       Web.Gathering.Auth
-                       Web.Gathering.Actions
+                       Web.Gathering.Actions.Utils
+                       Web.Gathering.Actions.Auth
+                       Web.Gathering.Actions.Events
+                       Web.Gathering.Actions.Attending
                        Web.Gathering.Forms.Utils
                        Web.Gathering.Forms.Sign
                        Web.Gathering.Forms.EditEvent

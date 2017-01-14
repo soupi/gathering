@@ -1,6 +1,4 @@
-{- | Various spock actions
-
-For now displaying events and creating new events
+{- | Displaying events, creating new events and editing existing events
 
 -}
 
@@ -8,14 +6,14 @@ For now displaying events and creating new events
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Web.Gathering.Actions where
+module Web.Gathering.Actions.Events where
 
 import Web.Gathering.Utils
 import Web.Gathering.Types
-import Web.Gathering.Model
 import Web.Gathering.Config
 import Web.Gathering.Database
-import Web.Gathering.Auth (IsAdmin)
+import Web.Gathering.Actions.Utils
+import Web.Gathering.Actions.Auth (IsAdmin)
 import Web.Gathering.Forms.EditEvent
 import qualified Web.Gathering.Html as Html
 
@@ -31,7 +29,7 @@ import Web.Spock.Digestive
 
 -- | Display events. allows the caller to specify which events to get from the database and in which order.
 displayEvents :: (Sql.Session [Event]) -> Maybe User -> Action (HVect xs) ()
-displayEvents getEventsQuery _ = do
+displayEvents getEventsQuery mUser = do
   mEventsAndAtts <- runQuery $ Sql.run $ do
     events <- getEventsQuery
     mapM (\e -> (e,) <$> getAttendantsForEvent e) events
@@ -47,7 +45,7 @@ displayEvents getEventsQuery _ = do
 
     Right eventsAA -> do
       title <- cfgTitle . appConfig <$> getState
-      lucid $ Html.renderEvents title eventsAA
+      lucid $ Html.renderEvents title mUser eventsAA
 
 -- | Describe the action to do when a user wants to create a new event
 --
@@ -75,8 +73,8 @@ newEventAction = do
           Left err -> do
             text $ T.pack (show err)
 
-          Right _ ->
-            text "Event submitted."
+          Right eid ->
+            redirect ("/event/" <> T.pack (show eid))
 
     (_, Just eEvent) ->
       reportEventParsingError eEvent
@@ -123,7 +121,7 @@ editEventAction eid = do
                 text $ T.pack (show err)
 
               Right _ ->
-                text "Event updated."
+                redirect ("/event/" <> T.pack (show eid))
 
         (_, Just eEvent) ->
           reportEventParsingError eEvent
@@ -132,11 +130,30 @@ editEventAction eid = do
     formView = formViewer $ editEventFormView path "Update"
     path = "/event/" <> T.pack (show eid) <> "/edit"
 
--- | Display the form to the user
-formViewer :: Monad m => (t -> m b) -> Maybe (m ()) -> t -> m b
-formViewer form mErr view = do
-  maybe (pure ()) id mErr
-  form view
+
+-- | Describe the action to do when a user wants to delete an existing event
+--
+removeEventAction :: (ListContains n User xs, ListContains m IsAdmin xs) => EventId -> Action (HVect xs) ()
+removeEventAction eid = do
+  mEvent <- runQuery $ Sql.run (getEventById eid)
+  case mEvent of
+    -- @TODO this is an internal error that we should take care of internally
+    Left err ->
+      text $ T.pack (show err)
+
+    Right Nothing ->
+      text "Event does not exist"
+
+    Right (Just event) -> do
+      result <- runQuery $ Sql.run (removeEvent event)
+      case result of
+        -- @TODO this is an internal error that we should take care of internally
+        Left err -> do
+          text $ T.pack (show err)
+
+        Right _ ->
+          redirect "/"
+
 
 reportEventParsingError :: EditEvent -> Action (HVect xs) ()
 reportEventParsingError eEvent =
