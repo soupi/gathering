@@ -62,7 +62,7 @@ authHook =
     oldCtx <- getContext
     case mUser of
       Nothing ->
-        redirect "signin"
+        redirect "/signin"
       Just val ->
         pure (val :&: oldCtx)
 

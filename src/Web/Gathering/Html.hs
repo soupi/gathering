@@ -14,6 +14,7 @@ import Data.Text (Text, pack)
 import Data.Monoid
 import Data.Time
 
+import Web.Gathering.Utils
 import Web.Gathering.Model
 
 
@@ -71,8 +72,8 @@ event e = do
 
   L.ul_ $ mapM_ (L.li_ . L.toHtml)
     [ "Location: " <> eventLocation e
-    , "Date: "     <> pack (formatTime defaultTimeLocale "%F %H:%M (%Z)" $ eventDateTime e)
-    , "Duration: " <> pack (show $ timeToTimeOfDay $ eventDuration e)
+    , "Date: "     <> formatDateTime (eventDateTime e)
+    , "Duration: " <> formatDiffTime (eventDuration e)
     ]
 
   L.div_ $ do

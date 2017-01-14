@@ -35,7 +35,3 @@ whenMaybe :: Monad m => Bool -> m (Maybe a) -> m (Maybe a)
 whenMaybe predicate x
   | predicate = x
   | otherwise = pure Nothing
-
--- | trim spaces from both sides
-trim :: T.Text -> T.Text
-trim = T.reverse . T.dropWhile (==' ') . T.reverse . T.dropWhile (==' ')

@@ -10,6 +10,8 @@ To read more about those check the Web.Gathering.Forms.Sign module
 
 module Web.Gathering.Forms.EditEvent where
 
+import Web.Gathering.Utils
+import Web.Gathering.Model
 import Web.Gathering.Forms.Utils
 import Web.Gathering.Html (Html)
 
@@ -37,13 +39,13 @@ data EditEvent
   deriving (Show)
 
 -- | Definition of a form and it's validation
-editEventForm :: Monad m => D.Form Html m EditEvent
-editEventForm = EditEvent
-    <$> "name"     .: D.check "Cannot be empty" (not . T.null) (fmap (fmap trim) D.text Nothing)
-    <*> "desc"     .: D.check "Cannot be empty" (not . T.null) (fmap (fmap trim) D.text Nothing)
-    <*> "location" .: D.check "Cannot be empty" (not . T.null) (fmap (fmap trim) D.text Nothing)
-    <*> "datetime" .: D.validateM validateDateTime (fmap (fmap trim) D.text Nothing)
-    <*> "duration" .: D.validateM validateDuration (fmap (fmap trim) D.text Nothing)
+editEventForm :: Monad m => Maybe EditEvent -> D.Form Html m EditEvent
+editEventForm mEvent = EditEvent
+    <$> "name"     .: D.check "Cannot be empty" (not . T.null) (fmap (fmap trim) D.text (eEventName     <$> mEvent))
+    <*> "desc"     .: D.check "Cannot be empty" (not . T.null) (fmap (fmap trim) D.text (eEventDesc     <$> mEvent))
+    <*> "location" .: D.check "Cannot be empty" (not . T.null) (fmap (fmap trim) D.text (eEventLocation <$> mEvent))
+    <*> "datetime" .: D.validateM validateDateTime (fmap (fmap trim) D.text (eEventDateTime <$> mEvent))
+    <*> "duration" .: D.validateM validateDuration (fmap (fmap trim) D.text (eEventDuration <$> mEvent))
 
 -- | Check we can parse this date time
 validateDateTime :: Monad m => T.Text -> m (D.Result Html T.Text)
@@ -55,30 +57,15 @@ validateDateTime datetime = validateM datetime
 -- | Check we can parse this duration
 validateDuration :: Monad m => T.Text -> m (D.Result Html T.Text)
 validateDuration duration = validateM duration
-  [ whenMaybe (isNothing $ toDuration duration) $
+  [ whenMaybe (isNothing $ parseDiffTime duration) $
       pure $ pure "Duration string must be of this format: 'HH:MM'. for example: '17:45'."
   ]
   where
 
--- | try to parse the format 'HH:MM' to DiffTime
-toDuration :: T.Text -> Maybe DiffTime
-toDuration (trim -> T.unpack -> duration) =
-  case duration of
-    h1:h2:':':m1:m2:[]
-      | isDigit h1 && isDigit h2 && read [h1,h2] <= 23
-      , isDigit m1 && isDigit m2 && read [m1,m2] <= 59
-     -> pure . secondsToDiffTime $ (read [h1,h2] * 60 * 60) + (read [m1,m2] * 60)
-
-    _ -> Nothing
-  where
-    isDigit = (`elem` ['0'..'9'])
-
-
-
 
 -- | Defining the view for the edit event form
-editEventFormView :: T.Text -> D.View Html -> Html
-editEventFormView formName view =
+editEventFormView :: T.Text -> T.Text -> D.View Html -> Html
+editEventFormView formName submitText view =
   D.form view formName $ do
     H.div_ $ do
       D.errorList "name" view
@@ -106,8 +93,15 @@ editEventFormView formName view =
       D.inputTextArea
         (Just 60) (Just 80) "desc" view
 
-    D.inputSubmit "Create"
+    D.inputSubmit submitText
 
 
-parseDateTime :: T.Text -> Maybe UTCTime
-parseDateTime = parseTimeM True defaultTimeLocale "%F %H:%M (%Z)" . T.unpack
+eventToEditEvent :: Event -> EditEvent
+eventToEditEvent Event { eventName, eventDesc, eventLocation, eventDateTime, eventDuration } =
+  EditEvent
+    eventName
+    eventDesc
+    eventLocation
+    (formatDateTime eventDateTime)
+    (formatDiffTime eventDuration)
+

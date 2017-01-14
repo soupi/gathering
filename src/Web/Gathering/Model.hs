@@ -19,7 +19,8 @@ import Data.Time (UTCTime, DiffTime)
 import Data.Map.Strict (Map)
 import Data.Text (Text)
 
-type UserId = Int32
+type UserId  = Int32
+type EventId = Int32
 
 -- | Describing a user of the system
 data User = User

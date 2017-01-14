@@ -18,10 +18,10 @@ either display back to the user with the relevant errors or use it the way we ne
 
 module Web.Gathering.Forms.Sign where
 
+import Web.Gathering.Utils
 import Web.Gathering.Forms.Utils
 import Web.Gathering.Html (Html)
 
-import Data.Maybe (catMaybes)
 import Text.Digestive ((.:))
 import qualified Text.Digestive as D
 import qualified Text.Digestive.Lucid.Html5 as D

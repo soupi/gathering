@@ -15,7 +15,6 @@ import Web.Gathering.Auth
 import Web.Gathering.Actions
 import Web.Gathering.Database
 
-import Data.Int (Int32)
 import Data.HVect
 import Data.Monoid
 import Data.Maybe (maybeToList)
@@ -42,10 +41,10 @@ appRouter = prehook baseHook $ do
   get "events" $ maybeUser $
     displayEvents getFutureEvents
 
-  get "past-events" $ maybeUser $
+  get ("events" <//> "past") $ maybeUser $
     displayEvents getPastEvents
 
-  get ("event" <//> var) $ \(eid :: Int32) ->
+  get ("event" <//> var) $ \(eid :: EventId) ->
     maybeUser $ displayEvents (maybeToList <$> getEventById eid)
 
   -- authentication
@@ -79,9 +78,12 @@ appRouter = prehook baseHook $ do
 
     prehook adminHook $ do
 
-      getpost "new-event" $
+      getpost ("event" <//> "new") $
         newEventAction
 
+
+      getpost ("event" <//> var <//> "edit") $ \(eid :: EventId) ->
+        editEventAction eid
 
 -----------
 -- Hooks --
