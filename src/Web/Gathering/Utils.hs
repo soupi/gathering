@@ -29,7 +29,7 @@ frh4 (_, _, _, d) = d
 
 -- | trim spaces from both sides
 trim :: T.Text -> T.Text
-trim = T.reverse . T.dropWhile (==' ') . T.reverse . T.dropWhile (==' ')
+trim = T.filter (/='\r') . T.reverse . T.dropWhile (==' ') . T.reverse . T.dropWhile (==' ')
 
 
 ---------------------------

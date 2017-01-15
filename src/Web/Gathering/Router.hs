@@ -19,6 +19,7 @@ import Web.Gathering.Database
 import Data.HVect
 import Data.Monoid
 import Data.Maybe (maybeToList)
+import Network.Wai.Middleware.Static (staticPolicy, addBase)
 
 import Web.Spock
 
@@ -33,6 +34,8 @@ import Web.Spock
 --
 appRouter :: App ()
 appRouter = prehook baseHook $ do
+
+  middleware (staticPolicy (addBase "static"))
 
   -- display events
 

@@ -45,7 +45,7 @@ displayEvents getEventsQuery mUser = do
 
     Right eventsAA -> do
       title <- cfgTitle . appConfig <$> getState
-      lucid $ Html.renderEvents title mUser eventsAA
+      lucid $ Html.renderEvents title title mUser eventsAA
 
 -- | Describe the action to do when a user wants to create a new event
 --

@@ -20,50 +20,64 @@ import Web.Gathering.Model
 
 type Html = L.Html ()
 
-template :: Text -> Html -> Html -> Html -> Html
-template title header nav body =
-  html_ $ do
+template :: Text -> Text -> Html -> Html -> Html
+template title heading nav body =
+  doctypehtml_ $ do
     head_ $ do
-      title_ (L.toHtml title)
-      link_ [rel_ "stylesheet", type_ "text/css", href_ "static/style.css"]
-    body_ $ do
-      div_ [id_ "header"] header
-      nav_ [id_ "nav"] nav
-      div_ [id_ "main"] body
-      footer_ [id_ "footer"] $
-        p_ $ do
-          "Powered by "
-          a_ [href_ "https://github.com/soupi/gathering"] "Gathering"
+      meta_ [ charset_ "utf-8" ]
 
-renderEvents :: Text -> Maybe User -> [(Event, [Attendant])] -> Html
-renderEvents title mUser eventsAndAtts =
+      title_ (L.toHtml title)
+
+      meta_ [ name_ "viewport", content_ "width=device-width, initial-scale=1" ]
+
+      link_ [ rel_ "stylesheet", type_ "text/css", href_ "/css/normalize.css" ]
+      link_ [ rel_ "stylesheet", type_ "text/css", href_ "/css/skeleton.css"  ]
+
+    body_ $ do
+      div_ [class_ "container"] $ do
+        L.div_ [ L.class_ "row" ] $ do
+          header_ [ L.class_ "eight columns" ] $
+            h1_ (L.a_ [ L.href_ "/" ] $ L.toHtml heading)
+
+          nav_ [class_ "four columns"] nav
+
+        div_ [id_ "main"] body
+
+        footer_ [id_ "footer"] $
+          p_ $ do
+            "Powered by "
+            a_ [href_ "https://github.com/soupi/gathering"] "Gathering"
+
+renderEvents :: Text -> Text -> Maybe User -> [(Event, [Attendant])] -> Html
+renderEvents title heading mUser eventsAndAtts =
   template
     title
-    (L.h1_ "Gathering!")
+    heading
     (L.nav_ $ navigation mUser)
     (events mUser eventsAndAtts)
 
 navigation :: Maybe User -> Html
 navigation mUser = do
-  L.ul_ . sequence_ $
-    case mUser of
-      Just user ->
-        [ L.li_ ("Signed-in as " <> L.toHtml (userName user))
-        , L.li_ (L.a_ [ L.href_ "/signout" ] "Sign-out")
-        ]
-        <> [ L.li_ (L.a_ [ L.href_ "/event/new" ] "New Event") | userIsAdmin user ]
+  case mUser of
+    Just user -> do
+      L.p_ ("Signed-in as " <> L.span_ [ L.class_ "signed-in" ] (L.toHtml (userName user)))
+      L.ul_ . sequence_ $
+        [ L.li_ (L.a_ [ L.href_ "/event/new" ] "New Event") | userIsAdmin user ]
+        <> [ L.li_ (L.a_ [ L.href_ "/signout" ] "Sign-out") ]
 
-      Nothing ->
+    Nothing -> do
+      L.p_ (L.toHtmlRaw ("<br>" :: Text))
+      L.ul_ . sequence_ $
         [ L.li_ (L.a_ [ L.href_ "/signin" ] "Sign-in")
         , L.li_ (L.a_ [ L.href_ "/signup" ] "Sign-up")
         ]
 
 
 noEvents :: Text -> Html
-noEvents title =
+noEvents heading =
   template
-    title
-    (L.h1_ "Gathering!")
+    (heading <> " - No events")
+    heading
     (L.ul_ $ pure ())
     (p_ "No available events!")
 
@@ -75,47 +89,56 @@ noEvents title =
 -- | Render all events + attendants
 events :: Maybe User -> [(Event, [Attendant])] -> Html
 events mUser =
-  mapM_ (\(e,a) -> L.div_ (event mUser e *> attendants (eventId e) a))
+  mapM_ (\(e,a) -> L.div_ [ class_ "event-attendants row" ] (event mUser e *> attendants (eventId e) a))
 
 -- | Render an event
 -- @TODO: render time properly and according to the users' timezone
 event :: Maybe User -> Event -> Html
-event mUser e = do
+event mUser e = L.div_ [ class_ "event nine columns" ] $ do
   L.h2_ $ do
     L.a_ [href_ ("/event/" <> (pack . show $ eventId e))] $
       L.toHtml $ eventName e
-    when (Just True == fmap userIsAdmin mUser) $ do
-      " - ("
+
+  when (Just True == fmap userIsAdmin mUser) $ do
+    div_ [ class_ "edit-event" ] $ do
+      " ("
       L.a_ [href_ ("/event/" <> (pack . show $ eventId e) <> "/edit")] "edit"
       " | "
       L.a_ [href_ ("/event/" <> (pack . show $ eventId e) <> "/delete")] "delete"
       ")"
 
-  L.ul_ $ mapM_ (L.li_ . L.toHtml)
-    [ "Location: " <> eventLocation e
-    , "Date: "     <> formatDateTime (eventDateTime e)
-    , "Duration: " <> formatDiffTime (eventDuration e)
-    ]
+  L.table_ [ class_ "event-info" ] $ do
+    L.tr_ $ do
+      L.th_ "Location"
+      L.th_ "Date"
+      L.th_ "Duration"
+    mapM_ (L.td_ . L.toHtml)
+      [ eventLocation e
+      , formatDateTime (eventDateTime e)
+      , formatDiffTime (eventDuration e)
+      ]
 
   L.div_ $ do
     renderDoc $ markdown markdownOptions (eventDesc e)
 
 -- | Render attendant list
 attendants :: EventId -> [Attendant] -> Html
-attendants eid atts = do
+attendants eid atts = L.div_ [ class_ "attendants three columns" ] $ do
   L.div_ $ do
-    L.h2_ "Will you attend?"
-    L.ul_ . sequence_ $
+    L.h4_ "Are you going?"
+
+    L.ul_ [ class_ "attending" ] . sequence_ $
       [ L.li_ (L.a_ [ L.href_ $ "/event/" <> pack (show eid) <> "/attending"     ] "Yes")
+      , "/"
       , L.li_ (L.a_ [ L.href_ $ "/event/" <> pack (show eid) <> "/not-attending" ] "No")
       ]
 
   L.div_ $ do
-    L.h3_ "Going"
+    L.h4_ "Going"
     L.ul_ . mapM_ attendant . filter attendantAttending $ atts
 
   L.div_ $ do
-    L.h3_ "Not Going"
+    L.h4_ "Not Going"
     L.ul_ . mapM_ attendant . filter (not . attendantAttending) $ atts
 
   where
