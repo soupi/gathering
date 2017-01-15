@@ -233,6 +233,10 @@ nav li:last-child:after {
     content: "";
 }
 
+form textarea {
+    height: 30rem;
+}
+
 /* Base Styles
 –––––––––––––––––––––––––––––––––––––––––––––––––– */
 /* NOTE

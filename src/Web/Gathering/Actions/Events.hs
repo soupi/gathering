@@ -54,6 +54,12 @@ displayEvents getEventsQuery mUser = do
 --
 newEventAction :: (ListContains n User xs, ListContains m IsAdmin xs) => Action (HVect xs) ()
 newEventAction = do
+  title <- cfgTitle . appConfig <$> getState
+  let
+    -- | Display the form to the user
+    formView mErr view = do
+      formViewer title "Sign-up" (editEventFormView path "Create") mErr view
+
   -- Run the form
   form <- runForm path (editEventForm Nothing)
   -- validate the form.
@@ -80,7 +86,6 @@ newEventAction = do
       reportEventParsingError eEvent
 
   where
-    formView = formViewer $ editEventFormView path "Create"
     path = "/event/new"
 
 -- | Describe the action to do when a user wants to edit an existing event
@@ -90,6 +95,12 @@ newEventAction = do
 --
 editEventAction :: (ListContains n User xs, ListContains m IsAdmin xs) => EventId -> Action (HVect xs) ()
 editEventAction eid = do
+  title <- cfgTitle . appConfig <$> getState
+  let
+    -- | Display the form to the user
+    formView mErr view = do
+      formViewer title "Sign-up" (editEventFormView path "Update") mErr view
+
   mEditedEvent <- runQuery $ Sql.run (getEventById eid)
   case mEditedEvent of
     -- @TODO this is an internal error that we should take care of internally
@@ -127,7 +138,6 @@ editEventAction eid = do
           reportEventParsingError eEvent
 
   where
-    formView = formViewer $ editEventFormView path "Update"
     path = "/event/" <> T.pack (show eid) <> "/edit"
 
 

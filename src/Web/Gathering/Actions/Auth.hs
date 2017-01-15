@@ -9,8 +9,10 @@
 module Web.Gathering.Actions.Auth where
 
 import Web.Gathering.Types
+import Web.Gathering.Config
 import Web.Gathering.Database
 import Web.Gathering.HashPassword
+import Web.Gathering.Actions.Utils
 import qualified Web.Gathering.Forms.Sign as FS
 
 import Data.Monoid
@@ -95,6 +97,12 @@ adminHook = do
 --
 signInAction :: (ListContains n IsGuest xs, NotInList User xs ~ 'True) => Action (HVect xs) ()
 signInAction = do
+  title <- cfgTitle . appConfig <$> getState
+  let
+    -- | Display the form to the user
+    formView mErr view = do
+      formViewer title "Sign-in" FS.signinFormView mErr view
+
   -- Run the form
   form <- runForm "loginForm" FS.signinForm
   -- validate the form.
@@ -124,12 +132,6 @@ signInAction = do
             else
               lucid $ formView (pure $ p_ "Invalid password.") view
 
-  where
-    -- | Display the form to the user
-    formView mErr view = do
-      maybe (pure ()) id mErr
-      FS.signinFormView view
-
 -- | Describe the action to do when a user wants to sign up for the system:
 --
 --   Will present the sign-up form and will take care of the validation,
@@ -138,6 +140,12 @@ signInAction = do
 --
 signUpAction :: (ListContains n IsGuest xs, NotInList User xs ~ 'True) => Action (HVect xs) ()
 signUpAction = do
+  title <- cfgTitle . appConfig <$> getState
+  let
+    -- | Display the form to the user
+    formView mErr view = do
+      formViewer title "Sign-up" FS.signupFormView mErr view
+
   -- Run the form
   form <- runForm "registerForm" FS.signupForm
   -- validate the form.
@@ -181,10 +189,6 @@ signUpAction = do
             Right nUser -> do
               makeSession (userId nUser) $
                 redirect "/"
-  where
-    formView mErr view = do
-      maybe (pure ()) id mErr
-      FS.signupFormView view
 
 
 signOutAction :: (ListContains n User xs) => Action (HVect xs) ()
