@@ -22,6 +22,7 @@ library
                        Web.Gathering.Types
                        Web.Gathering.Utils
                        Web.Gathering.Config
+                       Web.Gathering.Html
                        Web.Gathering.Run
                        Web.Gathering.Router
                        Web.Gathering.Actions.Utils
@@ -31,7 +32,8 @@ library
                        Web.Gathering.Forms.Utils
                        Web.Gathering.Forms.Sign
                        Web.Gathering.Forms.EditEvent
-                       Web.Gathering.Html
+                       Web.Gathering.Workers.Cleaner
+                       Web.Gathering.Workers.SendEmails
 
   --other-modules:       Web.Gathering
   ghc-options:         -Wall -fno-warn-type-defaults
@@ -43,7 +45,8 @@ library
                      , lucid
                      , Spock-lucid
                      -- background tasks like sending mails to users
-                     , Spock-worker
+                     , turtle
+                     , smtp-mail
                      -- tls support
                      , warp
                      , warp-tls

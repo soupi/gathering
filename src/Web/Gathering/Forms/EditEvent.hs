@@ -21,7 +21,6 @@ import qualified Text.Digestive as D
 import qualified Text.Digestive.Lucid.Html5 as D
 import qualified Lucid as H
 import qualified Data.Text as T
-import Data.Time
 
 ----------------
 -- Edit Event --

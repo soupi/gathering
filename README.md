@@ -12,6 +12,7 @@ This package requires:
 
 - `stack`
 - `postgresql-9.5+`
+- `sendmail`
 
 ## Setup
 

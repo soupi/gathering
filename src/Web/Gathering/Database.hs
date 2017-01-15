@@ -109,6 +109,18 @@ getEventById eid = Sql.query eid $
     (SqlD.maybeRow decodeEvent)
     False
 
+getNewEvents :: Sql.Session [((Event, Bool), [Attendant])]
+getNewEvents = do
+  events <- Sql.query () $
+    Sql.statement
+      "select e.*, en.is_edit from events e inner join new_events en on e.event_id = en.event_id where send_after < now()"
+      mempty
+      (SqlD.rowsList $ (,) <$> decodeEvent <*> SqlD.value SqlD.bool)
+      False
+
+  results <- mapM (\e -> (e,) <$> getAttendantsForEvent (fst e)) events
+
+  pure results
 
 
 -- | Get all attendants
@@ -141,6 +153,8 @@ getAttendantsForEvent event = do
 -------------------
 -- Insert/Update --
 -------------------
+
+-- User --
 
 -- | Add a new user to the users table
 
@@ -188,42 +202,68 @@ updateUserWithPassword user pass = do
     (pure . fst)
     result
 
+-- Event --
 
 -- | Add a new event to events table
 newEvent :: Event -> Sql.Session EventId
-newEvent event = Sql.query event $
-  Sql.statement
-    "insert into events (event_name, event_description, event_location, event_datetime, event_duration) values ($1, $2, $3, $4, $5) returning event_id"
-    encodeNewEvent
-    (SqlD.singleRow $ SqlD.value SqlD.int4)
-    True
+newEvent event = do
+  eid <- Sql.query event $
+    Sql.statement
+      "insert into events (event_name, event_description, event_location, event_datetime, event_duration) values ($1, $2, $3, $4, $5) returning event_id"
+      encodeNewEvent
+      (SqlD.singleRow $ SqlD.value SqlD.int4)
+      True
 
--- | Add or update a user session in the sessions table. Set to expire after 1 month
-upsertUserSession :: UserId -> Sql.Session ()
-upsertUserSession uid = Sql.query uid $
-  Sql.statement
-    "insert into sessions values ($1, now() + '1 month') on conflict (user_id) do update set valid_until = EXCLUDED.valid_until"
-    (SqlE.value SqlE.int4)
-    SqlD.unit
-    True
+  Sql.query eid $
+    Sql.statement
+      "insert into new_events values ($1, false, now() + '15 minutes')"
+      (SqlE.value SqlE.int4)
+      SqlD.unit
+      True
+
+  pure eid
+
 
 -- | Update an existing event in the events table
 updateEvent :: Event -> Sql.Session ()
-updateEvent event = Sql.query event $
-  Sql.statement
-    "update events set event_name = $2, event_description = $3, event_location = $4, event_datetime = $5, event_duration = $6 where event_id = $1"
-    encodeExistingEvent
-    SqlD.unit
-    True
+updateEvent event = do
+  Sql.query event $
+    Sql.statement
+      "update events set event_name = $2, event_description = $3, event_location = $4, event_datetime = $5, event_duration = $6 where event_id = $1"
+      encodeExistingEvent
+      SqlD.unit
+      True
+
+  Sql.query (eventId event) $
+    Sql.statement
+      "insert into new_events values ($1, true, now() + '15 minutes') on conflict (event_id) do update set is_edit = EXCLUDED.is_edit, send_after = EXCLUDED.send_after"
+      (SqlE.value SqlE.int4)
+      SqlD.unit
+      True
 
 -- | Remove an existing event from the events table
 removeEvent :: Event -> Sql.Session ()
-removeEvent event = Sql.query (eventId event) $
-  Sql.statement
-    "delete from events where event_id = $1"
-    (SqlE.value SqlE.int4)
-    SqlD.unit
-    True
+removeEvent event = do
+  Sql.query (eventId event) $
+    Sql.statement
+      "delete from events where event_id = $1"
+      (SqlE.value SqlE.int4)
+      SqlD.unit
+      True
+
+  removeNewEvent event
+
+removeNewEvent :: Event -> Sql.Session ()
+removeNewEvent event =
+  Sql.query (eventId event) $
+    Sql.statement
+      "delete from new_events where event_id = $1"
+      (SqlE.value SqlE.int4)
+      SqlD.unit
+      True
+
+
+-- Attendant --
 
 -- | Add or update an attendant for an event in the attendants table
 upsertAttendant :: Event -> Attendant -> Sql.Session ()
@@ -243,12 +283,33 @@ removeAttendant event user = Sql.query (event, user) $
     SqlD.unit
     True
 
+-- UserSession --
+
+-- | Add or update a user session in the sessions table. Set to expire after 1 month
+upsertUserSession :: UserId -> Sql.Session ()
+upsertUserSession uid = Sql.query uid $
+  Sql.statement
+    "insert into sessions values ($1, now() + '1 month') on conflict (user_id) do update set valid_until = EXCLUDED.valid_until"
+    (SqlE.value SqlE.int4)
+    SqlD.unit
+    True
+
+
 -- | Kill a session for a user
 killSession :: UserId -> Sql.Session ()
 killSession uid = Sql.query uid $
   Sql.statement
     "delete from sessions where user_id = $1"
     (SqlE.value SqlE.int4)
+    SqlD.unit
+    True
+
+-- | Delete sessions which have expired
+cleanOldSessions :: Sql.Session ()
+cleanOldSessions = Sql.query () $
+  Sql.statement
+    "delete from sessions where valid_until < now()"
+    mempty
     SqlD.unit
     True
 

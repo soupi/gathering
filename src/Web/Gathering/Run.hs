@@ -20,7 +20,6 @@ import Control.Monad (void)
 import Control.Concurrent (forkIO)
 import Network.Wai.Handler.Warp (setPort, defaultSettings)
 import Network.Wai.Handler.WarpTLS (runTLS, tlsSettings)
-import qualified Data.ByteString.Char8 as BSC
 
 import Hasql.Connection (Connection)
 
@@ -38,7 +37,7 @@ run :: IO ()
 run = do
   (config, cmd) <- parseArgs
   print (config, cmd)
-  let connstr = BSC.pack $ cfgDbConnStr config
+  let connstr = cfgDbConnStr config
   spockCfg <- defaultSpockCfg EmptySession (PCConn $ hasqlPool connstr) (AppState config)
   case cmd of
     HTTP port ->

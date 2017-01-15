@@ -28,6 +28,7 @@ module Web.Gathering.Config
   )
 where
 
+import Data.ByteString.Char8 (ByteString, pack)
 import Options.Applicative
 import qualified Data.Text as T
 import qualified Data.Configurator as C
@@ -60,8 +61,9 @@ parseArgs = do
 parseConfig :: FilePath -> IO (AppConfig, Command)
 parseConfig cfgFile = do
   cfg <- C.load [C.Required cfgFile]
-  name <- C.require cfg "blogName"
-  desc <- C.require cfg "blogDescription"
+  name <- C.require cfg "name"
+  desc <- C.require cfg "description"
+  domain <- C.require cfg "domain"
   db <- C.require cfg "db"
 
   port <- C.lookup cfg "http.port"
@@ -79,7 +81,7 @@ parseConfig cfgFile = do
     _ ->
       error "http or https configuration missing from configuration file."
 
-  pure (AppConfig db name desc, cmd')
+  pure (AppConfig name desc domain db, cmd')
 
 
 ------------
@@ -95,9 +97,10 @@ data Config = Config
 
 -- | Application Configuration
 data AppConfig = AppConfig
-  { cfgTitle :: T.Text -- ^Title of the website
-  , cfgDesc  :: T.Text -- ^Description of the website
-  , cfgDbConnStr :: String -- ^db connection string
+  { cfgTitle  :: T.Text -- ^Title of the website
+  , cfgDesc   :: T.Text -- ^Description of the website
+  , cfgDomain :: T.Text -- ^Domain of the site to appear in email links
+  , cfgDbConnStr :: ByteString -- ^db connection string
   }
   deriving (Show, Eq, Ord)
 
@@ -119,8 +122,9 @@ data TLSConfig = TLSConfig
 -- | Default configuration to run gather
 defaultConfig :: AppConfig
 defaultConfig = AppConfig
-  { cfgTitle = "Gathering"
-  , cfgDesc  = "Get together!"
+  { cfgTitle  = "Gathering"
+  , cfgDesc   = "Get together!"
+  , cfgDomain = "localhost:8080"
   , cfgDbConnStr = "host=localhost dbname=gather port=5432 user=gather password=gather"
   }
 
@@ -145,7 +149,8 @@ config :: Parser AppConfig
 config = AppConfig
   <$> fmap T.pack ttl
   <*> fmap T.pack desc
-  <*> dbconnstr
+  <*> fmap T.pack domain
+  <*> fmap pack dbconnstr
   where
     ttl =
       strOption
@@ -157,9 +162,16 @@ config = AppConfig
     desc =
       strOption
         (long "description"
-         <> short 'd'
+         <> short 'D'
          <> metavar "DESC"
          <> help "Website description"
+        )
+    domain =
+      strOption
+        (long "domain"
+         <> short 'd'
+         <> metavar "Domain"
+         <> help "Domain for the site to be sent with email links"
         )
     dbconnstr =
       strOption

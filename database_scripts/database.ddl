@@ -29,3 +29,10 @@ create table sessions (
     valid_until timestamptz not null,
     primary key (user_id)
 );
+
+create table new_events (
+    event_id integer references events(event_id),
+    is_edit bool not null,
+    send_after timestamptz not null,
+    primary key (event_id)
+);
