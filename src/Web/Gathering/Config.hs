@@ -25,6 +25,8 @@ module Web.Gathering.Config
   , Command(..)
   , TLSConfig(..)
   , defaultConfig
+  , getPort
+  , getProtocol
   )
 where
 
@@ -109,7 +111,7 @@ data Command
   = HTTP Int
   | HTTPS TLSConfig
   | Both Int TLSConfig
-  deriving (Show, Read)
+  deriving (Show, Read, Eq, Ord)
 
 -- | Requires the needed values for runTLS
 data TLSConfig = TLSConfig
@@ -117,14 +119,29 @@ data TLSConfig = TLSConfig
   , tlsCert :: FilePath
   , tlsKey  :: FilePath
   }
-  deriving (Show, Read)
+  deriving (Show, Read, Eq, Ord)
+
+-- | returns the port of the command. favors https
+getPort :: Command -> Int
+getPort = \case
+  HTTP p -> p
+  HTTPS tls -> tlsPort tls
+  Both _ tls -> tlsPort tls
+
+-- | returns the protocol of the command. favors https
+getProtocol :: Command -> T.Text
+getProtocol = \case
+  HTTP _ -> "http"
+  HTTPS _ -> "https"
+  Both _ _ -> "https"
+
 
 -- | Default configuration to run gather
 defaultConfig :: AppConfig
 defaultConfig = AppConfig
   { cfgTitle  = "Gathering"
   , cfgDesc   = "Get together!"
-  , cfgDomain = "localhost:8080"
+  , cfgDomain = "localhost"
   , cfgDbConnStr = "host=localhost dbname=gather port=5432 user=gather password=gather"
   }
 

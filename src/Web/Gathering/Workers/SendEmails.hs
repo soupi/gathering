@@ -12,7 +12,6 @@ module Web.Gathering.Workers.SendEmails where
 import Prelude hiding (unlines)
 import Control.Exception
 import Data.Bool (bool)
-import Data.Int (Int32)
 import Turtle
 import Network.Mail.SMTP
 import Hasql.Session
@@ -29,17 +28,18 @@ import Web.Gathering.Html (markdownOptions)
 import Web.Gathering.Model
 import Web.Gathering.Utils
 import Web.Gathering.Config
+import Web.Gathering.Types
 import Web.Gathering.Database
 
 
-newEventsWorker :: AppConfig -> IO ()
+newEventsWorker :: AppState -> IO ()
 newEventsWorker config = forever $ do
   newEventsWorker' config
   sleep (60 * 20) -- sleep for 20 minutes
 
-newEventsWorker' :: AppConfig -> IO ()
+newEventsWorker' :: AppState -> IO ()
 newEventsWorker' config = do
-  mConn <- acquire (cfgDbConnStr config)
+  mConn <- acquire (cfgDbConnStr $ appConfig config)
   case mConn of
     Right conn -> do
       sendNewEvents config conn `catch` \ex -> err ("New Events Worker: " <> (pack $ show (ex :: IOException)))
@@ -48,7 +48,7 @@ newEventsWorker' config = do
       err ("New Events Worker: " <> pack (show ex))
 
 
-sendNewEvents :: AppConfig -> Connection -> IO ()
+sendNewEvents :: AppState -> Connection -> IO ()
 sendNewEvents config conn = do
   mNewEventsUsers <- flip run conn $
     (,)
@@ -76,8 +76,8 @@ sendNewEvents config conn = do
       forM_ newEvents $
         \((ne,_),_) -> run (removeNewEvent ne) conn
 
-notifyNewEvent :: AppConfig -> Event -> Bool -> User -> IO ()
-notifyNewEvent config event isEdit user = do
+notifyNewEvent :: AppState -> Event -> Bool -> User -> IO ()
+notifyNewEvent state@(AppState config _) event isEdit user = do
   renderSendMail $
     emailTemplate
       config
@@ -97,19 +97,25 @@ notifyNewEvent config event isEdit user = do
         , fromStrict $ "Duration: " <> formatDiffTime (eventDuration event)
         , ""
         , renderText . renderDoc . markdown markdownOptions $
-          "To read more about the event, [click here](http://"
-            <> cfgDomain config
+          "To read more about the event, [click here](" <> getDomain state
             <> "/event/"
             <> pack (show $ eventId event)
             <> ")."
         , ""
         , renderText . renderDoc . markdown markdownOptions $
-          "To find about more events from " <> cfgTitle config <> ", [click here](http://" <> cfgDomain config <> ")!"
+          "To find about more events from " <> cfgTitle config <> ", [click here](" <> getDomain state <> ")!"
         ]
       ]
 
-notifyVerification :: AppConfig -> Int32 -> User -> IO ()
-notifyVerification config key user = do
+getDomain :: AppState -> Text
+getDomain (AppState config cmd) =
+  getProtocol cmd
+   <> "://"
+   <> cfgDomain config
+   <> ":" <> (pack . show $ getPort cmd)
+
+notifyVerification :: AppState -> User -> IO ()
+notifyVerification state@(AppState config _) user = do
   renderSendMail $
     emailTemplate
       config
@@ -118,13 +124,15 @@ notifyVerification config key user = do
       [ htmlPart $ unlines
         [ renderText . renderDoc . markdown markdownOptions $
           "Click the following link to verify your account:\n\n"
-        <>"[Verify your account](http://"
-            <> cfgDomain config
+        <>"[Verify your account]("
+            <> getDomain state
             <> "/verify-user/"
-            <> pack (show key)
-            <> "/"
             <> pack (show $ userId user)
+            <> "/"
+            <> userEmail user
             <> ")"
+        , ""
+        , "Note that this verification link will expire in two days."
         , ""
         , "If this wasn't you, feel free to ignore it!"
         ]

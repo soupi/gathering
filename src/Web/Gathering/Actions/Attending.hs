@@ -15,7 +15,6 @@ import qualified Data.Text as T
 import qualified Hasql.Session as Sql (run)
 import Data.HVect (HVect(..), ListContains, findFirst)
 import Data.Monoid
-import Data.Bool (bool)
 
 import Web.Spock
 

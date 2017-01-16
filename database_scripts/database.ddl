@@ -6,6 +6,15 @@ create table users (
     user_wants_updates bool not null,
     user_password_hash bytea not null
 );
+create table new_users (
+    verification_rand int not null,
+    user_name text unique not null,
+    user_email text unique not null,
+    user_isadmin bool not null,
+    user_wants_updates bool not null,
+    user_password_hash bytea not null,
+    valid_until timestamptz not null
+);
 
 create table events (
     event_id serial primary key,

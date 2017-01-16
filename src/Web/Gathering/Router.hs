@@ -18,6 +18,8 @@ import Web.Gathering.Database
 
 import Data.HVect
 import Data.Monoid
+import Data.Int (Int32)
+import Data.Text (Text)
 import Data.Maybe (maybeToList)
 import Network.Wai.Middleware.Static (staticPolicy, addBase)
 
@@ -64,6 +66,9 @@ appRouter = prehook baseHook $ do
       signInAction
     getpost "login" $
       redirect "signin"
+
+    get ("verify-user" <//> var <//> var) $ \(key :: Int32) (email :: Text) ->
+      verificationAction key email
 
   -- signed-in users zone
 

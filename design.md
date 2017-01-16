@@ -51,7 +51,7 @@ You can create events easily and share them with others.
 create table users (
     user_id serial primary key,
     user_name text unique not null,
-    user_email citext unique not null,
+    user_email text unique not null,
     user_isadmin bool not null,
     user_wants_updates bool not null,
     user_password_hash bytea not null
@@ -158,11 +158,11 @@ New signups will be inserted into a `new_users` table upon registration
 create table new_users (
     verification_rand int not null,
     user_name text unique not null,
-    user_email citext unique not null,
+    user_email text unique not null,
     user_isadmin bool not null,
     user_wants_updates bool not null,
     user_password_hash bytea not null,
-    expiration_date timestamptz not null
+    valid_until timestamptz not null
 );
 
 ```

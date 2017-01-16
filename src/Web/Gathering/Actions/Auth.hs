@@ -13,11 +13,14 @@ import Web.Gathering.Config
 import Web.Gathering.Database
 import Web.Gathering.HashPassword
 import Web.Gathering.Actions.Utils
+import Web.Gathering.Workers.SendEmails
 import qualified Web.Gathering.Forms.Sign as FS
 
+import Data.Int (Int32)
 import Data.Monoid
 import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
+import Control.Exception
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Hasql.Session as Sql (run)
@@ -186,10 +189,21 @@ signUpAction = do
             Left err ->
               text $ T.pack (show err)
 
-            Right nUser -> do
-              makeSession (userId nUser) $
-                redirect "/"
+            Right (Left err) ->
+              text err
 
+            Right (Right nUser) -> do
+              state  <- getState
+              result <- liftIO $ (pure <$> notifyVerification state nUser)
+                `catch` \ex -> pure $ Left (T.pack $ show (ex :: SomeException))
+              case result of
+                Right () ->
+                  text $ "Verification email sent to " <> userEmail nUser <> ". Note that it will expire in two days."
+                    <> "\n\nPlease give it a few minutes and check your spam folder as well."
+
+                Left err -> do
+                  void . runQuery . Sql.run $ removeNewUser nUser
+                  text $ "Failed to send email. Please verify your mail is valid and try again later.\n\n" <> err
 
 signOutAction :: (ListContains n User xs) => Action (HVect xs) ()
 signOutAction = do
@@ -201,6 +215,21 @@ signOutAction = do
       writeSession EmptySession
       void $ runQuery $ Sql.run $ killSession uid -- maybe log this?
       redirect "/"
+
+verificationAction :: (ListContains n IsGuest xs, NotInList User xs ~ 'True) => Int32 -> T.Text -> Action (HVect xs) ()
+verificationAction key email = do
+  result <- runQuery . Sql.run $ verifyNewUser key email
+  case result of
+    Left err ->
+      text . T.pack $ show err
+
+    Right (Left err) ->
+      text err
+
+    Right (Right user) ->
+      makeSession (userId user) $
+        redirect "/"
+
 
 -----------
 -- Utils --

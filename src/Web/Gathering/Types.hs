@@ -27,7 +27,8 @@ data MySession
 
 -- | The state is the app configuration and won't change
 data AppState = AppState
-  { appConfig :: AppConfig
+  { appConfig  :: AppConfig
+  , appCommand :: Command
   }
   deriving (Show, Eq, Ord)
 

@@ -38,7 +38,7 @@ run = do
   (config, cmd) <- parseArgs
   print (config, cmd)
   let connstr = cfgDbConnStr config
-  spockCfg <- defaultSpockCfg EmptySession (PCConn $ hasqlPool connstr) (AppState config)
+  spockCfg <- defaultSpockCfg EmptySession (PCConn $ hasqlPool connstr) (AppState config cmd)
   case cmd of
     HTTP port ->
       runSpock port (spock spockCfg appRouter)

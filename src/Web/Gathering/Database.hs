@@ -34,6 +34,18 @@ import Data.Maybe (mapMaybe)
 -- Query --
 -----------
 
+-- | Retrieve a user from the new_users table. Will have the verification random in the userId field.
+--   Will return Nothing if the user does not exist
+getNewUser :: T.Text -> T.Text -> Sql.Session (Maybe User)
+getNewUser name email =
+  Sql.query (name, email) $
+    Sql.statement
+      "select verification_rand, user_name, user_email, user_isadmin, user_wants_updates from new_users where (user_name = $1 or user_email = $2) and valid_until > now()"
+      (contramap fst (SqlE.value SqlE.text) <> contramap snd (SqlE.value SqlE.text))
+      (SqlD.maybeRow decodeUser)
+      True
+  
+
 -- | Get a user from the users table with a specific id
 getUserById :: UserId -> Sql.Session (Maybe User)
 getUserById uid = Sql.query uid $
@@ -156,21 +168,54 @@ getAttendantsForEvent event = do
 
 -- User --
 
--- | Add a new user to the users table
-
-newUser :: User -> BS.ByteString -> Sql.Session User
+-- | Add a new user to the new_users table. this will be marked valid for two days
+newUser :: User -> BS.ByteString -> Sql.Session (Either T.Text User)
 newUser user pass = do
-  Sql.query (user, pass) $
-    Sql.statement
-      "insert into users (user_name, user_email, user_isadmin, user_wants_updates, user_password_hash) values ($1, $2, $3, $4, $5)"
-      encodeNewUser
-      SqlD.unit
-      True
-  result <- getUserLogin (userName user) (userEmail user)
-  maybe
-    (fail "Internal error: Could not find user after insert.")
-    (pure . fst)
-    result
+  userExists <- getUserLogin (userName user) (userEmail user)
+  case userExists of
+    Just _ ->
+      pure $ Left "This user has already been verified"
+
+    Nothing -> do
+      newUserExists <- getNewUser (userName user) (userEmail user)
+      case newUserExists of
+        Just _ ->
+          pure $ Left "User is still pending verification."
+
+        Nothing -> do
+          Sql.query (user, pass) $
+            Sql.statement
+              "insert into new_users (verification_rand, user_name, user_email, user_isadmin, user_wants_updates, user_password_hash, valid_until) values (round(random() * 2000000000), $1, $2, $3, $4, $5, now() + '2 days')"
+              encodeNewUser
+              SqlD.unit
+              True
+          r <- getNewUser (userName user) (userEmail user)
+          maybe
+            (pure $ Left "Internal error: Could not find user after insert.")
+            (pure . Right)
+            r
+
+
+verifyNewUser :: Int32 -> T.Text -> Sql.Session (Either T.Text User)
+verifyNewUser key email = do
+  result <- getUserLogin email email
+  case result of
+    Just _ ->
+      pure (Left "This user has already been verified")
+    Nothing -> do
+      insertResult <- Sql.query (key, email) $
+        Sql.statement
+          "insert into users (user_name, user_email, user_isadmin, user_wants_updates, user_password_hash) select user_name, user_email, user_isadmin, user_wants_updates, user_password_hash from new_users where verification_rand = $1 and user_email = $2 and valid_until > now() returning user_id, user_name, user_email, user_isadmin, user_wants_updates"
+          (contramap fst (SqlE.value SqlE.int4) <> contramap snd (SqlE.value SqlE.text))
+          (SqlD.maybeRow decodeUser)
+          True
+
+      case insertResult of
+        Just r ->
+          pure (pure r)
+        Nothing -> 
+          pure (Left "Could not find associated email. Maybe verification expired?")
+
 
 -- | Update an existing user in the users table
 updateUser :: User -> Sql.Session User
@@ -201,6 +246,16 @@ updateUserWithPassword user pass = do
     (fail "Internal error: Could not find user after update.")
     (pure . fst)
     result
+
+-- | Delete a user from the new_users table based on their email and verification_rand
+removeNewUser :: User -> Sql.Session ()
+removeNewUser user = do
+  Sql.query (userId user, userEmail user) $
+    Sql.statement
+      "delete from new_users where verification_rand = $1 and user_email = $2"
+      (contramap fst (SqlE.value SqlE.int4) <> contramap snd (SqlE.value SqlE.text))
+      SqlD.unit
+      True
 
 -- Event --
 
@@ -244,6 +299,7 @@ updateEvent event = do
 -- | Remove an existing event from the events table
 removeEvent :: Event -> Sql.Session ()
 removeEvent event = do
+  removeAttendants event
   Sql.query (eventId event) $
     Sql.statement
       "delete from events where event_id = $1"
@@ -283,6 +339,15 @@ removeAttendant event user = Sql.query (event, user) $
     SqlD.unit
     True
 
+-- | Remove all attendants for an event from the attendants table
+removeAttendants :: Event -> Sql.Session ()
+removeAttendants event = Sql.query (eventId event) $
+  Sql.statement
+    "delete from attendants where event_id = $1"
+    (SqlE.value SqlE.int4)
+    SqlD.unit
+    True
+
 -- UserSession --
 
 -- | Add or update a user session in the sessions table. Set to expire after 1 month
@@ -309,6 +374,14 @@ cleanOldSessions :: Sql.Session ()
 cleanOldSessions = Sql.query () $
   Sql.statement
     "delete from sessions where valid_until < now()"
+    mempty
+    SqlD.unit
+    True
+
+cleanOldNewUsers :: Sql.Session ()
+cleanOldNewUsers = Sql.query () $
+  Sql.statement
+    "delete from new_users where valid_until < now()"
     mempty
     SqlD.unit
     True
