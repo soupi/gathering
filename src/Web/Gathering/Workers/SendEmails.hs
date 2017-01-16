@@ -34,7 +34,9 @@ import Web.Gathering.Database
 
 newEventsWorker :: AppState -> IO ()
 newEventsWorker config = forever $ do
+  putStrLn "Events worker starting..."
   newEventsWorker' config
+  putStrLn "Events Worker sleeping..."
   sleep (60 * 20) -- sleep for 20 minutes
 
 newEventsWorker' :: AppState -> IO ()
@@ -42,7 +44,7 @@ newEventsWorker' config = do
   mConn <- acquire (cfgDbConnStr $ appConfig config)
   case mConn of
     Right conn -> do
-      sendNewEvents config conn `catch` \ex -> err ("New Events Worker: " <> (pack $ show (ex :: IOException)))
+      sendNewEvents config conn `catch` \ex -> err ("New Events Worker: " <> (pack $ show (ex :: SomeException)))
       release conn
     Left ex ->
       err ("New Events Worker: " <> pack (show ex))

@@ -44,7 +44,6 @@ getNewUser name email =
       (contramap fst (SqlE.value SqlE.text) <> contramap snd (SqlE.value SqlE.text))
       (SqlD.maybeRow decodeUser)
       True
-  
 
 -- | Get a user from the users table with a specific id
 getUserById :: UserId -> Sql.Session (Maybe User)
@@ -213,7 +212,7 @@ verifyNewUser key email = do
       case insertResult of
         Just r ->
           pure (pure r)
-        Nothing -> 
+        Nothing ->
           pure (Left "Could not find associated email. Maybe verification expired?")
 
 

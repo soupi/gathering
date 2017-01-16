@@ -15,6 +15,8 @@ import Web.Gathering.Types
 import Web.Gathering.Config
 import Web.Gathering.Database
 import Web.Gathering.Router
+import Web.Gathering.Workers.SendEmails
+import Web.Gathering.Workers.Cleaner
 
 import Control.Monad (void)
 import Control.Concurrent (forkIO)
@@ -35,11 +37,18 @@ import Web.Spock.Config
 --
 run :: IO ()
 run = do
-  (config, cmd) <- parseArgs
-  print (config, cmd)
-  let connstr = cfgDbConnStr config
-  spockCfg <- defaultSpockCfg EmptySession (PCConn $ hasqlPool connstr) (AppState config cmd)
-  case cmd of
+  (uncurry AppState -> state) <- parseArgs
+  print state
+  let connstr = cfgDbConnStr (appConfig state)
+  spockCfg <- defaultSpockCfg EmptySession (PCConn $ hasqlPool connstr) state
+
+  -- Background workers
+  void $ forkIO $ newEventsWorker state
+  void $ forkIO $ cleanerWorker state
+
+  -- app
+
+  case appCommand state of
     HTTP port ->
       runSpock port (spock spockCfg appRouter)
     HTTPS tls -> do
@@ -47,6 +56,7 @@ run = do
     Both port tls -> do
       void $ forkIO $ runSpock port (spock spockCfg appRouter)
       runHttps spockCfg tls
+
 
 
 -- | Run the spock app with HTTPS

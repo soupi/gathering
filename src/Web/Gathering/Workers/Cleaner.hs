@@ -11,10 +11,23 @@ import Hasql.Session
 import Hasql.Connection
 
 import Web.Gathering.Database
+import Web.Gathering.Types
+import Web.Gathering.Config
 
-cleanerWorker :: Connection -> IO ()
-cleanerWorker conn = forever $ do
-  cleaner conn
+cleanerWorker :: AppState -> IO ()
+cleanerWorker state = forever $ do
+  mConn <- acquire (cfgDbConnStr $ appConfig state)
+
+  case mConn of
+    Right conn -> do
+      putStrLn "Cleaner starting..."
+      cleaner conn
+      release conn
+
+    Left ex ->
+      err ("Cleaner: " <> pack (show ex))
+
+  putStrLn "Cleaner sleeping..."
   sleep (60 * 60) -- sleep for 1 hour
 
 cleaner :: Connection -> IO ()
