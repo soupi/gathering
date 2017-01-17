@@ -15,6 +15,7 @@ import Web.Gathering.Model
 import Web.Gathering.Forms.Utils
 import Web.Gathering.Html (Html)
 
+import Data.Monoid
 import Data.Maybe (isNothing)
 import Text.Digestive ((.:))
 import qualified Text.Digestive as D
@@ -38,9 +39,10 @@ data EditEvent
   deriving (Show)
 
 -- | Definition of a form and it's validation
-editEventForm :: Monad m => Maybe EditEvent -> D.Form Html m EditEvent
-editEventForm mEvent = EditEvent
-    <$> "name"     .: D.check "Cannot be empty" (not . T.null) (fmap (fmap trim) D.text (eEventName     <$> mEvent))
+editEventForm :: Monad m => T.Text -> Maybe EditEvent -> D.Form Html m EditEvent
+editEventForm csrfToken mEvent = const EditEvent
+    <$> "__csrf_token" .: D.text (Just csrfToken)
+    <*> "name"     .: D.check "Cannot be empty" (not . T.null) (fmap (fmap trim) D.text (eEventName     <$> mEvent))
     <*> "desc"     .: D.check "Cannot be empty" (not . T.null) (fmap (fmap trim) D.text (eEventDesc     <$> mEvent))
     <*> "location" .: D.check "Cannot be empty" (not . T.null) (fmap (fmap trim) D.text (eEventLocation <$> mEvent))
     <*> "datetime" .: D.validateM validateDateTime (fmap (fmap trim) D.text (eEventDateTime <$> mEvent))
@@ -92,6 +94,8 @@ editEventFormView formName submitText view =
       D.inputTextArea
         (Just 60) (Just 80) "desc" view
 
+    D.inputHidden "__csrf_token" view
+
     D.inputSubmit submitText
 
 
@@ -104,3 +108,32 @@ eventToEditEvent Event { eventName, eventDesc, eventLocation, eventDateTime, eve
     (formatDateTime eventDateTime)
     (formatDiffTime eventDuration)
 
+
+-- Delete event --
+
+-- | Definition of a delete event data type
+data DeleteEvent
+  = DeleteEvent
+  { imSure :: Bool
+  }
+  deriving (Show)
+
+-- | Definition of a form and it's validation
+deleteEventForm :: Monad m => T.Text -> D.Form Html m DeleteEvent
+deleteEventForm csrfToken = const DeleteEvent
+    <$> "__csrf_token" .: D.text (Just csrfToken)
+    <*> "imsure" .: D.bool Nothing
+
+
+-- | Defining the view for the delete event form
+deleteEventFormView :: T.Text -> T.Text -> D.View Html -> Html
+deleteEventFormView formName eName view =
+  D.form view formName $ do
+    H.div_ $ do
+      D.inputCheckbox "imsure" view
+      D.label         "imsure" view . H.toHtml $
+        "I'm sure I want to delete the event '" <> eName <> "'."
+
+    D.inputHidden "__csrf_token" view
+
+    D.inputSubmit "Delete Event"

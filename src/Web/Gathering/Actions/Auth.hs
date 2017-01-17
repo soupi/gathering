@@ -101,18 +101,19 @@ adminHook = do
 signInAction :: (ListContains n IsGuest xs, NotInList User xs ~ 'True) => Action (HVect xs) ()
 signInAction = do
   title <- cfgTitle . appConfig <$> getState
+  csrfToken <- getCsrfToken
   let
     -- | Display the form to the user
     formView mErr view = do
       formViewer title "Sign-in" FS.signinFormView mErr view
 
   -- Run the form
-  form <- runForm "loginForm" FS.signinForm
+  form <- runForm "" (FS.signinForm csrfToken)
   -- validate the form.
   -- Nothing means failure. will display the form view back to the user when validation fails.
   case form of
     (view, Nothing) ->
-      lucid $ formView Nothing view
+      formView Nothing view
     -- If basic validation of fields succeeds, continue to check validation against db
 
     (view, Just FS.Signin{sinLogin, sinPassword}) -> do
@@ -125,7 +126,7 @@ signInAction = do
           text $ T.pack (show err)
 
         Right Nothing ->
-          lucid $ formView (pure $ p_ "Invalid user name/email.") view
+          formView (pure $ p_ "Invalid user name/email.") view
 
         Right (Just (user, pass)) -> do
           if verifyPassword (T.encodeUtf8 sinPassword) pass
@@ -133,7 +134,7 @@ signInAction = do
               makeSession (userId user) $
                 redirect "/"
             else
-              lucid $ formView (pure $ p_ "Invalid password.") view
+              formView (pure $ p_ "Invalid password.") view
 
 -- | Describe the action to do when a user wants to sign up for the system:
 --
@@ -144,18 +145,19 @@ signInAction = do
 signUpAction :: (ListContains n IsGuest xs, NotInList User xs ~ 'True) => Action (HVect xs) ()
 signUpAction = do
   title <- cfgTitle . appConfig <$> getState
+  csrfToken <- getCsrfToken
   let
     -- | Display the form to the user
     formView mErr view = do
       formViewer title "Sign-up" FS.signupFormView mErr view
 
   -- Run the form
-  form <- runForm "registerForm" FS.signupForm
+  form <- runForm "" (FS.signupForm csrfToken)
   -- validate the form.
   -- Nothing means failure. will display the form view back to the user when validation fails.
   case form of
     (view, Nothing) ->
-      lucid $ formView Nothing view
+      formView Nothing view
 
     -- Case for bots
     (_, Just (FS.Signup { supUsername, supSpamHoneyPot }))
@@ -173,11 +175,11 @@ signUpAction = do
           text $ T.pack (show err)
 
         Right (Just _) -> do
-            lucid $ formView (pure $ p_ "Username or email already exists.") view
+            formView (pure $ p_ "Username or email already exists.") view
 
         Right Nothing
           | pass /= passConfirm ->
-            lucid $ formView (pure $ p_ "Passwords do not match.") view
+            formView (pure $ p_ "Passwords do not match.") view
 
         -- User does not exists and passwords match. try to create a new user
         Right Nothing -> do
@@ -240,6 +242,7 @@ verificationAction key email = do
 makeSession :: (ListContains n IsGuest xs, NotInList User xs ~ 'True)
             => UserId -> Action (HVect xs) () -> Action (HVect xs) ()
 makeSession uid act = do
+  sessionRegenerateId
   sessRes <- runQuery $ Sql.run $ upsertUserSession uid
   case sessRes of
     Left err -> do

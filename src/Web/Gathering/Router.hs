@@ -103,8 +103,8 @@ appRouter = prehook baseHook $ do
       getpost ("event" <//> var <//> "edit") $ \(eid :: EventId) ->
         editEventAction eid
 
-      get ("event" <//> var <//> "delete") $ \(eid :: EventId) ->
-        removeEventAction eid
+      getpost ("event" <//> var <//> "delete") $ \(eid :: EventId) ->
+        deleteEventAction eid
 
 -----------
 -- Hooks --

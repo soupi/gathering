@@ -55,18 +55,19 @@ displayEvents getEventsQuery mUser = do
 newEventAction :: (ListContains n User xs, ListContains m IsAdmin xs) => Action (HVect xs) ()
 newEventAction = do
   title <- cfgTitle . appConfig <$> getState
+  csrfToken <- getCsrfToken
   let
     -- | Display the form to the user
     formView mErr view = do
       formViewer title "Sign-up" (editEventFormView path "Create") mErr view
 
   -- Run the form
-  form <- runForm path (editEventForm Nothing)
+  form <- runForm "" (editEventForm csrfToken Nothing)
   -- validate the form.
   -- Nothing means failure. will display the form view back to the user when validation fails.
   case form of
     (view, Nothing) ->
-      lucid $ formView Nothing view
+      formView Nothing view
     -- If basic validation of fields succeeds, continue to check validation against db
 
     (_, Just (EditEvent name desc loc mWhen mDur))
@@ -96,6 +97,7 @@ newEventAction = do
 editEventAction :: (ListContains n User xs, ListContains m IsAdmin xs) => EventId -> Action (HVect xs) ()
 editEventAction eid = do
   title <- cfgTitle . appConfig <$> getState
+  csrfToken <- getCsrfToken
   let
     -- | Display the form to the user
     formView mErr view = do
@@ -113,12 +115,12 @@ editEventAction eid = do
     Right (Just editedEvent) -> do
 
       -- Run the form
-      form <- runForm path (editEventForm $ Just $ eventToEditEvent editedEvent)
+      form <- runForm "" (editEventForm csrfToken $ Just $ eventToEditEvent editedEvent)
       -- validate the form.
       -- Nothing means failure. will display the form view back to the user when validation fails.
       case form of
         (view, Nothing) ->
-          lucid $ formView Nothing view
+          formView Nothing view
         -- If basic validation of fields succeeds, continue to check validation against db
 
         (_, Just (EditEvent name desc loc mWhen mDur))
@@ -143,9 +145,11 @@ editEventAction eid = do
 
 -- | Describe the action to do when a user wants to delete an existing event
 --
-removeEventAction :: (ListContains n User xs, ListContains m IsAdmin xs) => EventId -> Action (HVect xs) ()
-removeEventAction eid = do
+deleteEventAction :: (ListContains n User xs, ListContains m IsAdmin xs) => EventId -> Action (HVect xs) ()
+deleteEventAction eid = do
   mEvent <- runQuery $ Sql.run (getEventById eid)
+  csrfToken <- getCsrfToken
+
   case mEvent of
     -- @TODO this is an internal error that we should take care of internally
     Left err ->
@@ -155,14 +159,33 @@ removeEventAction eid = do
       text "Event does not exist"
 
     Right (Just event) -> do
-      result <- runQuery $ Sql.run (removeEvent event)
-      case result of
-        -- @TODO this is an internal error that we should take care of internally
-        Left err -> do
-          text $ T.pack (show err)
 
-        Right _ ->
-          redirect "/"
+      let
+        path = "/event/" <> T.pack (show eid) <> "/delete"
+        -- | Display the form to the user
+        formView mErr view = do
+          formViewer "Delete Event" "Delete" (deleteEventFormView path $ eventName event) mErr view
+
+      -- Run the form
+      form <- runForm "" (deleteEventForm csrfToken)
+      -- validate the form.
+      -- Nothing means failure. will display the form view back to the user when validation fails.
+      case form of
+        (view, Nothing) ->
+          formView Nothing view
+
+        (_, Just (DeleteEvent False)) -> do
+          redirect $ "/event/" <> T.pack (show $ eventId event)
+
+        (_, Just (DeleteEvent True)) -> do
+          result <- runQuery $ Sql.run (removeEvent event)
+          case result of
+            -- @TODO this is an internal error that we should take care of internally
+            Left err -> do
+              text $ T.pack (show err)
+
+            Right _ ->
+              redirect "/"
 
 
 reportEventParsingError :: EditEvent -> Action (HVect xs) ()

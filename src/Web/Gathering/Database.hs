@@ -299,14 +299,13 @@ updateEvent event = do
 removeEvent :: Event -> Sql.Session ()
 removeEvent event = do
   removeAttendants event
+  removeNewEvent event
   Sql.query (eventId event) $
     Sql.statement
       "delete from events where event_id = $1"
       (SqlE.value SqlE.int4)
       SqlD.unit
       True
-
-  removeNewEvent event
 
 removeNewEvent :: Event -> Sql.Session ()
 removeNewEvent event =

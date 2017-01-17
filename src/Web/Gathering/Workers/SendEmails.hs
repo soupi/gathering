@@ -34,9 +34,9 @@ import Web.Gathering.Database
 
 newEventsWorker :: AppState -> IO ()
 newEventsWorker config = forever $ do
-  putStrLn "Events worker starting..."
+  putStrTime "Events worker starting..."
   newEventsWorker' config
-  putStrLn "Events Worker sleeping..."
+  putStrTime "Events Worker sleeping..."
   sleep (60 * 20) -- sleep for 20 minutes
 
 newEventsWorker' :: AppState -> IO ()
@@ -44,10 +44,10 @@ newEventsWorker' config = do
   mConn <- acquire (cfgDbConnStr $ appConfig config)
   case mConn of
     Right conn -> do
-      sendNewEvents config conn `catch` \ex -> err ("New Events Worker: " <> (pack $ show (ex :: SomeException)))
+      sendNewEvents config conn `catch` \ex -> errTime ("New Events Worker: " <> (pack $ show (ex :: SomeException)))
       release conn
     Left ex ->
-      err ("New Events Worker: " <> pack (show ex))
+      errTime ("New Events Worker: " <> pack (show ex))
 
 
 sendNewEvents :: AppState -> Connection -> IO ()
@@ -58,7 +58,7 @@ sendNewEvents config conn = do
       <*> fmap (filter $ userWantsUpdates) getUsers
 
   case mNewEventsUsers of
-    Left er -> err (pack $ show er)
+    Left er -> errTime (pack $ show er)
 
     Right (newEvents, users) -> do
       forM_ newEvents $ \case

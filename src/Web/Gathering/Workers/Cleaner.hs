@@ -6,13 +6,14 @@
 module Web.Gathering.Workers.Cleaner where
 
 import Data.Text (pack)
-import Turtle
+import Turtle (forever, (<>), sleep)
 import Hasql.Session
 import Hasql.Connection
 
 import Web.Gathering.Database
 import Web.Gathering.Types
 import Web.Gathering.Config
+import Web.Gathering.Utils
 
 cleanerWorker :: AppState -> IO ()
 cleanerWorker state = forever $ do
@@ -20,14 +21,14 @@ cleanerWorker state = forever $ do
 
   case mConn of
     Right conn -> do
-      putStrLn "Cleaner starting..."
+      putStrTime "Cleaner starting..."
       cleaner conn
       release conn
 
     Left ex ->
-      err ("Cleaner: " <> pack (show ex))
+      errTime ("Cleaner: " <> pack (show ex))
 
-  putStrLn "Cleaner sleeping..."
+  putStrTime "Cleaner sleeping..."
   sleep (60 * 60) -- sleep for 1 hour
 
 cleaner :: Connection -> IO ()
@@ -40,4 +41,4 @@ report = \case
   Right _ ->
     pure ()
   Left ex ->
-    err ("Cleaner: " <> pack (show ex))
+    errTime ("Cleaner: " <> pack (show ex))
