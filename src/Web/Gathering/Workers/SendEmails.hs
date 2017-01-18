@@ -54,16 +54,16 @@ sendNewEvents :: AppState -> Connection -> IO ()
 sendNewEvents config conn = do
   mNewEventsUsers <- flip run conn $
     (,)
-      <$> getNewEvents
-      <*> fmap (filter $ userWantsUpdates) getUsers
+      <$> runReadTransaction getNewEvents
+      <*> (filter userWantsUpdates <$> runReadTransaction getUsers)
 
   case mNewEventsUsers of
     Left er -> errTime (pack $ show er)
 
-    Right (newEvents, users) -> do
+    Right (newEvents, users) ->
       forM_ newEvents $ \case
         ((event, False), _) -> do
-          mapM (notifyNewEvent config event False) users
+          mapM (notifyNewEvent config conn event False) users
 
         ((event, True), atts) ->
           let
@@ -73,13 +73,10 @@ sendNewEvents config conn = do
             notifiedUsers =
               S.union (S.fromList users) (getAttsWantsUpdates id) S.\\ (getAttsWantsUpdates not)
           in
-            mapM (notifyNewEvent config event True) (S.toList notifiedUsers)
+            mapM (notifyNewEvent config conn event True) (S.toList notifiedUsers)
 
-      forM_ newEvents $
-        \((ne,_),_) -> run (removeNewEvent ne) conn
-
-notifyNewEvent :: AppState -> Event -> Bool -> User -> IO ()
-notifyNewEvent state@(AppState config _) event isEdit user = do
+notifyNewEvent :: AppState -> Connection -> Event -> Bool -> User -> IO (Either Error ())
+notifyNewEvent state@(AppState config _) conn event isEdit user = do
   renderSendMail $
     emailTemplate
       config
@@ -108,6 +105,7 @@ notifyNewEvent state@(AppState config _) event isEdit user = do
           "To find about more events from " <> cfgTitle config <> ", [click here](" <> getDomain state <> ")!"
         ]
       ]
+  run (runWriteTransaction $ removeNewEvent event) conn
 
 getDomain :: AppState -> Text
 getDomain (AppState config cmd) =

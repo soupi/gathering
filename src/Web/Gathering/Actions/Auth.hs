@@ -119,7 +119,7 @@ signInAction = do
     (view, Just FS.Signin{sinLogin, sinPassword}) -> do
       -- Query the db for a match for the login
       -- (will check if sinLogin match either the user name or email)
-      maybeUserAndPass <- runQuery $ Sql.run (getUserLogin sinLogin sinLogin)
+      maybeUserAndPass <- runQuery $ Sql.run (runReadTransaction $ getUserLogin sinLogin sinLogin)
       case maybeUserAndPass of
         -- @TODO this is an internal error that we should take care of internally
         Left err -> do
@@ -168,7 +168,7 @@ signUpAction = do
     (view, Just (FS.Signup uname umail pass passConfirm notify _)) -> do
       -- Query the db for a match for the login
       -- will check if the users' requested name or email already exists
-      maybeUserAndPass <- runQuery $ Sql.run (getUserLogin uname umail)
+      maybeUserAndPass <- runQuery $ Sql.run (runReadTransaction $ getUserLogin uname umail)
       case maybeUserAndPass of
         -- @TODO this is an internal error that we should take care of internally
         Left err -> do
@@ -185,7 +185,7 @@ signUpAction = do
         Right Nothing -> do
           hashedPass <- liftIO $ makePassword pass
           mNewUser <-
-            runQuery $ Sql.run $ newUser (User 0 uname umail False notify) hashedPass
+            runQuery $ Sql.run $ runWriteTransaction $ newUser (User 0 uname umail False notify) hashedPass
           -- @TODO this is an internal error that we should take care of internally
           case mNewUser of
             Left err ->
@@ -204,7 +204,7 @@ signUpAction = do
                     <> "\n\nPlease give it a few minutes and check your spam folder as well."
 
                 Left err -> do
-                  void . runQuery . Sql.run $ removeNewUser nUser
+                  void . runQuery . Sql.run $ runWriteTransaction $ removeNewUser nUser
                   text $ "Failed to send email. Please verify your mail is valid and try again later.\n\n" <> err
 
 signOutAction :: (ListContains n User xs) => Action (HVect xs) ()
@@ -215,12 +215,12 @@ signOutAction = do
       text "Not logged in."
     SessionId uid -> do
       writeSession EmptySession
-      void $ runQuery $ Sql.run $ killSession uid -- maybe log this?
+      void $ runQuery $ Sql.run $ runWriteTransaction $ killSession uid -- maybe log this?
       redirect "/"
 
 verificationAction :: (ListContains n IsGuest xs, NotInList User xs ~ 'True) => Int32 -> T.Text -> Action (HVect xs) ()
 verificationAction key email = do
-  result <- runQuery . Sql.run $ verifyNewUser key email
+  result <- runQuery . Sql.run $ runWriteTransaction $ verifyNewUser key email
   case result of
     Left err ->
       text . T.pack $ show err
@@ -243,7 +243,7 @@ makeSession :: (ListContains n IsGuest xs, NotInList User xs ~ 'True)
             => UserId -> Action (HVect xs) () -> Action (HVect xs) ()
 makeSession uid act = do
   sessionRegenerateId
-  sessRes <- runQuery $ Sql.run $ upsertUserSession uid
+  sessRes <- runQuery $ Sql.run $ runWriteTransaction $ upsertUserSession uid
   case sessRes of
     Left err -> do
       text $ T.pack (show err)
@@ -260,7 +260,7 @@ maybeUser action = do
       action Nothing
 
     SessionId uid -> do
-      emUser <- runQuery $ Sql.run (getUserBySession uid)
+      emUser <- runQuery $ Sql.run (runReadTransaction $ getUserBySession uid)
       case emUser of
         -- @TODO this is an internal error that we should take care of internally
         Left err ->

@@ -33,8 +33,8 @@ cleanerWorker state = forever $ do
 
 cleaner :: Connection -> IO ()
 cleaner conn = do
-  run cleanOldSessions conn >>= report
-  run cleanOldNewUsers conn >>= report
+  run (runWriteTransaction cleanOldSessions) conn >>= report
+  run (runWriteTransaction cleanOldNewUsers) conn >>= report
 
 report :: Either Error t -> IO ()
 report = \case

@@ -26,7 +26,7 @@ import Web.Spock
 attendingAction :: (ListContains n User xs) => EventId -> Maybe Bool -> Action (HVect xs) ()
 attendingAction eid mIsAttending = do
   user <- fmap findFirst getContext
-  getResult <- runQuery $ Sql.run (getEventById eid)
+  getResult <- runQuery $ Sql.run (runReadTransaction $ getEventById eid)
   case getResult of
     -- @TODO this is an internal error that we should take care of internally
     Left err -> do
@@ -39,9 +39,9 @@ attendingAction eid mIsAttending = do
       upsertResult <- runQuery $ Sql.run $
         case mIsAttending of
           Just isAttending ->
-            upsertAttendant event (Attendant user isAttending isAttending)
+            runWriteTransaction $ upsertAttendant event (Attendant user isAttending isAttending)
           Nothing ->
-            removeAttendant event user
+            runWriteTransaction $ removeAttendant event user
       case upsertResult of
         Left err -> do
           text $ T.pack (show err)

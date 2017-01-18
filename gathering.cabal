@@ -60,6 +60,7 @@ library
                      , Spock-digestive
                      -- database integration
                      , hasql
+                     , hasql-transaction
                      -- input validation
                      , html-email-validate
                      --

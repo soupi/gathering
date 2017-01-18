@@ -16,9 +16,11 @@ import Web.Spock.Config
 import qualified Web.Spock.Config as SC
 import qualified Hasql.Connection as Sql
 import qualified Hasql.Query as Sql
-import qualified Hasql.Session as Sql
+import qualified Hasql.Session as Sql hiding (query)
 import qualified Hasql.Decoders as SqlD
 import qualified Hasql.Encoders as SqlE
+import qualified Hasql.Transaction as Sql
+import qualified Hasql.Transaction.Sessions as Sql
 
 import qualified Data.Map.Strict as M
 import qualified Data.ByteString as BS
@@ -30,13 +32,20 @@ import Data.Int (Int32)
 import Data.List (find)
 import Data.Maybe (mapMaybe)
 
+
+runReadTransaction :: Sql.Transaction a -> Sql.Session a
+runReadTransaction = Sql.transaction Sql.Serializable Sql.Read
+
+runWriteTransaction :: Sql.Transaction a -> Sql.Session a
+runWriteTransaction = Sql.transaction Sql.Serializable Sql.Write
+
 -----------
 -- Query --
 -----------
 
 -- | Retrieve a user from the new_users table. Will have the verification random in the userId field.
 --   Will return Nothing if the user does not exist
-getNewUser :: T.Text -> T.Text -> Sql.Session (Maybe User)
+getNewUser :: T.Text -> T.Text -> Sql.Transaction (Maybe User)
 getNewUser name email =
   Sql.query (name, email) $
     Sql.statement
@@ -46,7 +55,7 @@ getNewUser name email =
       True
 
 -- | Get a user from the users table with a specific id
-getUserById :: UserId -> Sql.Session (Maybe User)
+getUserById :: UserId -> Sql.Transaction (Maybe User)
 getUserById uid = Sql.query uid $
   Sql.statement
     "select user_id, user_name, user_email, user_isadmin, user_wants_updates from users where user_id = $1"
@@ -55,7 +64,7 @@ getUserById uid = Sql.query uid $
     True
 
 -- | Find a user by matching either their username or email
-getUserLogin :: T.Text -> T.Text -> Sql.Session (Maybe (User, BS.ByteString))
+getUserLogin :: T.Text -> T.Text -> Sql.Transaction (Maybe (User, BS.ByteString))
 getUserLogin name email = Sql.query (name, email) $
   Sql.statement
     "select user_id, user_name, user_email, user_isadmin, user_wants_updates, user_password_hash from users where user_name = $1 OR user_email = $2"
@@ -66,7 +75,7 @@ getUserLogin name email = Sql.query (name, email) $
     True
 
 -- | Get a user from the users table from a session
-getUserBySession :: UserId -> Sql.Session (Maybe User)
+getUserBySession :: UserId -> Sql.Transaction (Maybe User)
 getUserBySession uid = Sql.query uid $
   Sql.statement
     "select users.user_id, users.user_name, users.user_email, users.user_isadmin, users.user_wants_updates from users join sessions on users.user_id = sessions.user_id and sessions.valid_until > now() and users.user_id = $1"
@@ -76,7 +85,7 @@ getUserBySession uid = Sql.query uid $
 
 
 -- | Get users from the users table
-getUsers :: Sql.Session [User]
+getUsers :: Sql.Transaction [User]
 getUsers = Sql.query () $
   Sql.statement
     "select user_id, user_name, user_email, user_isadmin, user_wants_updates from users"
@@ -85,7 +94,7 @@ getUsers = Sql.query () $
     False
 
 -- | Get events from the events table
-getEvents :: Sql.Session [Event]
+getEvents :: Sql.Transaction [Event]
 getEvents = Sql.query () $
   Sql.statement
     "select * from events"
@@ -94,7 +103,7 @@ getEvents = Sql.query () $
     False
 
 -- | Get future events from the events table
-getFutureEvents :: Sql.Session [Event]
+getFutureEvents :: Sql.Transaction [Event]
 getFutureEvents = Sql.query () $
   Sql.statement
     "select * from events where event_datetime >= now() order by event_datetime asc"
@@ -103,7 +112,7 @@ getFutureEvents = Sql.query () $
     False
 
 -- | Get future events from the events table
-getPastEvents :: Sql.Session [Event]
+getPastEvents :: Sql.Transaction [Event]
 getPastEvents = Sql.query () $
   Sql.statement
     "select * from events where event_datetime < now() order by event_datetime desc"
@@ -112,7 +121,7 @@ getPastEvents = Sql.query () $
     False
 
 -- | Get an event by id from the events table
-getEventById :: Int32 -> Sql.Session (Maybe Event)
+getEventById :: Int32 -> Sql.Transaction (Maybe Event)
 getEventById eid = Sql.query eid $
   Sql.statement
     "select * from events where event_id = $1"
@@ -120,7 +129,7 @@ getEventById eid = Sql.query eid $
     (SqlD.maybeRow decodeEvent)
     False
 
-getNewEvents :: Sql.Session [((Event, Bool), [Attendant])]
+getNewEvents :: Sql.Transaction [((Event, Bool), [Attendant])]
 getNewEvents = do
   events <- Sql.query () $
     Sql.statement
@@ -135,7 +144,7 @@ getNewEvents = do
 
 
 -- | Get all attendants
-getAttendants :: Sql.Session Attendants
+getAttendants :: Sql.Transaction Attendants
 getAttendants = do
   attendants <- Sql.query () $
     Sql.statement
@@ -151,7 +160,7 @@ getAttendants = do
 
 
 -- | Get attendants for an event
-getAttendantsForEvent :: Event -> Sql.Session [Attendant]
+getAttendantsForEvent :: Event -> Sql.Transaction [Attendant]
 getAttendantsForEvent event = do
   Sql.query event $
     Sql.statement
@@ -168,7 +177,7 @@ getAttendantsForEvent event = do
 -- User --
 
 -- | Add a new user to the new_users table. this will be marked valid for two days
-newUser :: User -> BS.ByteString -> Sql.Session (Either T.Text User)
+newUser :: User -> BS.ByteString -> Sql.Transaction (Either T.Text User)
 newUser user pass = do
   userExists <- getUserLogin (userName user) (userEmail user)
   case userExists of
@@ -195,7 +204,7 @@ newUser user pass = do
             r
 
 
-verifyNewUser :: Int32 -> T.Text -> Sql.Session (Either T.Text User)
+verifyNewUser :: Int32 -> T.Text -> Sql.Transaction (Either T.Text User)
 verifyNewUser key email = do
   result <- getUserLogin email email
   case result of
@@ -217,7 +226,7 @@ verifyNewUser key email = do
 
 
 -- | Update an existing user in the users table
-updateUser :: User -> Sql.Session User
+updateUser :: User -> Sql.Transaction User
 updateUser user = do
   Sql.query user $
     Sql.statement
@@ -232,7 +241,7 @@ updateUser user = do
     result
 
 -- | Update an existing user in the users table including the password
-updateUserWithPassword :: User -> BS.ByteString -> Sql.Session User
+updateUserWithPassword :: User -> BS.ByteString -> Sql.Transaction User
 updateUserWithPassword user pass = do
   Sql.query (user, pass) $
     Sql.statement
@@ -247,7 +256,7 @@ updateUserWithPassword user pass = do
     result
 
 -- | Delete a user from the new_users table based on their email and verification_rand
-removeNewUser :: User -> Sql.Session ()
+removeNewUser :: User -> Sql.Transaction ()
 removeNewUser user = do
   Sql.query (userId user, userEmail user) $
     Sql.statement
@@ -259,7 +268,7 @@ removeNewUser user = do
 -- Event --
 
 -- | Add a new event to events table
-newEvent :: Event -> Sql.Session EventId
+newEvent :: Event -> Sql.Transaction EventId
 newEvent event = do
   eid <- Sql.query event $
     Sql.statement
@@ -279,7 +288,7 @@ newEvent event = do
 
 
 -- | Update an existing event in the events table
-updateEvent :: Event -> Sql.Session ()
+updateEvent :: Event -> Sql.Transaction ()
 updateEvent event = do
   Sql.query event $
     Sql.statement
@@ -296,7 +305,7 @@ updateEvent event = do
       True
 
 -- | Remove an existing event from the events table
-removeEvent :: Event -> Sql.Session ()
+removeEvent :: Event -> Sql.Transaction ()
 removeEvent event = do
   removeAttendants event
   removeNewEvent event
@@ -307,7 +316,7 @@ removeEvent event = do
       SqlD.unit
       True
 
-removeNewEvent :: Event -> Sql.Session ()
+removeNewEvent :: Event -> Sql.Transaction ()
 removeNewEvent event =
   Sql.query (eventId event) $
     Sql.statement
@@ -320,7 +329,7 @@ removeNewEvent event =
 -- Attendant --
 
 -- | Add or update an attendant for an event in the attendants table
-upsertAttendant :: Event -> Attendant -> Sql.Session ()
+upsertAttendant :: Event -> Attendant -> Sql.Transaction ()
 upsertAttendant event att = Sql.query (event, att) $
   Sql.statement
     "insert into attendants values ($1, $2, $3, $4) on conflict (event_id, user_id) do update set attending = EXCLUDED.attending, follow_changes = EXCLUDED.follow_changes"
@@ -329,7 +338,7 @@ upsertAttendant event att = Sql.query (event, att) $
     True
 
 -- | Remove an attendant for an event from the attendants table
-removeAttendant :: Event -> User -> Sql.Session ()
+removeAttendant :: Event -> User -> Sql.Transaction ()
 removeAttendant event user = Sql.query (event, user) $
   Sql.statement
     "delete from attendants where event_id = $1 and user_id = $2"
@@ -338,7 +347,7 @@ removeAttendant event user = Sql.query (event, user) $
     True
 
 -- | Remove all attendants for an event from the attendants table
-removeAttendants :: Event -> Sql.Session ()
+removeAttendants :: Event -> Sql.Transaction ()
 removeAttendants event = Sql.query (eventId event) $
   Sql.statement
     "delete from attendants where event_id = $1"
@@ -349,7 +358,7 @@ removeAttendants event = Sql.query (eventId event) $
 -- UserSession --
 
 -- | Add or update a user session in the sessions table. Set to expire after 1 month
-upsertUserSession :: UserId -> Sql.Session ()
+upsertUserSession :: UserId -> Sql.Transaction ()
 upsertUserSession uid = Sql.query uid $
   Sql.statement
     "insert into sessions values ($1, now() + '1 month') on conflict (user_id) do update set valid_until = EXCLUDED.valid_until"
@@ -359,7 +368,7 @@ upsertUserSession uid = Sql.query uid $
 
 
 -- | Kill a session for a user
-killSession :: UserId -> Sql.Session ()
+killSession :: UserId -> Sql.Transaction ()
 killSession uid = Sql.query uid $
   Sql.statement
     "delete from sessions where user_id = $1"
@@ -368,7 +377,7 @@ killSession uid = Sql.query uid $
     True
 
 -- | Delete sessions which have expired
-cleanOldSessions :: Sql.Session ()
+cleanOldSessions :: Sql.Transaction ()
 cleanOldSessions = Sql.query () $
   Sql.statement
     "delete from sessions where valid_until < now()"
@@ -376,7 +385,7 @@ cleanOldSessions = Sql.query () $
     SqlD.unit
     True
 
-cleanOldNewUsers :: Sql.Session ()
+cleanOldNewUsers :: Sql.Transaction ()
 cleanOldNewUsers = Sql.query () $
   Sql.statement
     "delete from new_users where valid_until < now()"

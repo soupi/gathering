@@ -8,6 +8,7 @@ extra-deps:
 - digestive-functors-0.8.1.1
 - digestive-functors-lucid-0.0.0.4
 - html-email-validate-0.2.0.0
+- hasql-transaction-0.5
 
 flags: {}
 

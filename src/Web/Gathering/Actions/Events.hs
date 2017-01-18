@@ -33,7 +33,7 @@ displayEvents :: (Sql.Session [Event]) -> Maybe User -> Action (HVect xs) ()
 displayEvents getEventsQuery mUser = do
   mEventsAndAtts <- runQuery $ Sql.run $ do
     events <- getEventsQuery
-    mapM (\e -> (e,) <$> getAttendantsForEvent e) events
+    mapM (\e -> (e,) <$> runReadTransaction (getAttendantsForEvent e)) events
   case mEventsAndAtts of
     -- @TODO this is an internal error that we should take care of internally
     Left err -> do
@@ -75,7 +75,7 @@ newEventAction = do
       | Just when <- parseDateTime mWhen
       , Just dur  <- parseDiffTime mDur
       -> do
-        result <- runQuery $ Sql.run (newEvent $ Event 0 name desc loc when dur) -- newEvent doesn't care about event_id
+        result <- runQuery $ Sql.run (runWriteTransaction $ newEvent $ Event 0 name desc loc when dur) -- newEvent doesn't care about event_id
         case result of
           -- @TODO this is an internal error that we should take care of internally
           Left err -> do
@@ -104,7 +104,7 @@ editEventAction eid = do
       form <- secureForm path (editEventFormView "Update") view
       formViewer title "Update Event" form mErr
 
-  mEditedEvent <- runQuery $ Sql.run (getEventById eid)
+  mEditedEvent <- runQuery $ Sql.run (runReadTransaction $ getEventById eid)
   case mEditedEvent of
     -- @TODO this is an internal error that we should take care of internally
     Left err ->
@@ -128,7 +128,7 @@ editEventAction eid = do
           | Just when <- parseDateTime mWhen
           , Just dur  <- parseDiffTime mDur
           -> do
-            result <- runQuery $ Sql.run (updateEvent $ Event eid name desc loc when dur)
+            result <- runQuery $ Sql.run (runWriteTransaction $ updateEvent $ Event eid name desc loc when dur)
             case result of
               -- @TODO this is an internal error that we should take care of internally
               Left err -> do
@@ -148,7 +148,7 @@ editEventAction eid = do
 --
 deleteEventAction :: (ListContains n User xs, ListContains m IsAdmin xs) => EventId -> Action (HVect xs) ()
 deleteEventAction eid = do
-  mEvent <- runQuery $ Sql.run (getEventById eid)
+  mEvent <- runQuery $ Sql.run (runReadTransaction $ getEventById eid)
 
   case mEvent of
     -- @TODO this is an internal error that we should take care of internally
@@ -179,7 +179,7 @@ deleteEventAction eid = do
           redirect $ "/event/" <> T.pack (show $ eventId event)
 
         (_, Just (DeleteEvent True)) -> do
-          result <- runQuery $ Sql.run (removeEvent event)
+          result <- runQuery $ Sql.run (runWriteTransaction $ removeEvent event)
           case result of
             -- @TODO this is an internal error that we should take care of internally
             Left err -> do
