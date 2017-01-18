@@ -39,10 +39,9 @@ data EditEvent
   deriving (Show)
 
 -- | Definition of a form and it's validation
-editEventForm :: Monad m => T.Text -> Maybe EditEvent -> D.Form Html m EditEvent
-editEventForm csrfToken mEvent = const EditEvent
-    <$> "__csrf_token" .: D.text (Just csrfToken)
-    <*> "name"     .: D.check "Cannot be empty" (not . T.null) (fmap (fmap trim) D.text (eEventName     <$> mEvent))
+editEventForm :: Monad m => Maybe EditEvent -> D.Form Html m EditEvent
+editEventForm mEvent = EditEvent
+    <$> "name"     .: D.check "Cannot be empty" (not . T.null) (fmap (fmap trim) D.text (eEventName     <$> mEvent))
     <*> "desc"     .: D.check "Cannot be empty" (not . T.null) (fmap (fmap trim) D.text (eEventDesc     <$> mEvent))
     <*> "location" .: D.check "Cannot be empty" (not . T.null) (fmap (fmap trim) D.text (eEventLocation <$> mEvent))
     <*> "datetime" .: D.validateM validateDateTime (fmap (fmap trim) D.text (eEventDateTime <$> mEvent))
@@ -65,9 +64,8 @@ validateDuration duration = validateM duration
 
 
 -- | Defining the view for the edit event form
-editEventFormView :: T.Text -> T.Text -> D.View Html -> Html
-editEventFormView formName submitText view =
-  D.form view formName $ do
+editEventFormView :: T.Text -> D.View Html -> Html
+editEventFormView submitText view = do
     H.div_ $ do
       D.errorList "name" view
       D.label     "name" view "Name: "
@@ -94,8 +92,6 @@ editEventFormView formName submitText view =
       D.inputTextArea
         (Just 60) (Just 80) "desc" view
 
-    D.inputHidden "__csrf_token" view
-
     D.inputSubmit submitText
 
 
@@ -119,21 +115,17 @@ data DeleteEvent
   deriving (Show)
 
 -- | Definition of a form and it's validation
-deleteEventForm :: Monad m => T.Text -> D.Form Html m DeleteEvent
-deleteEventForm csrfToken = const DeleteEvent
-    <$> "__csrf_token" .: D.text (Just csrfToken)
-    <*> "imsure" .: D.bool Nothing
+deleteEventForm :: Monad m => D.Form Html m DeleteEvent
+deleteEventForm = DeleteEvent
+    <$> "imsure" .: D.bool Nothing
 
 
 -- | Defining the view for the delete event form
-deleteEventFormView :: T.Text -> T.Text -> D.View Html -> Html
-deleteEventFormView formName eName view =
-  D.form view formName $ do
+deleteEventFormView :: T.Text -> D.View Html -> Html
+deleteEventFormView eName view = do
     H.div_ $ do
       D.inputCheckbox "imsure" view
       D.label         "imsure" view . H.toHtml $
         "I'm sure I want to delete the event '" <> eName <> "'."
-
-    D.inputHidden "__csrf_token" view
 
     D.inputSubmit "Delete Event"

@@ -56,10 +56,9 @@ data Signup
   } deriving (Show)
 
 -- | Definition of a form and it's validation
-signupForm :: Monad m => T.Text -> D.Form Html m Signup
-signupForm csrfToken = const Signup
-    <$> "__csrf_token" .: D.text (Just csrfToken)
-    <*> "name"      .: D.validateM validateName (fmap (fmap trim) D.text Nothing)
+signupForm :: Monad m => D.Form Html m Signup
+signupForm = Signup
+    <$> "name"      .: D.validateM validateName (fmap (fmap trim) D.text Nothing)
     <*> "email"     .: D.validateM validateMail (fmap (fmap trim) D.text Nothing)
     <*> "password1" .: D.validateM validatePass (fmap (fmap trim) D.text Nothing)
     <*> "password2" .: D.text Nothing
@@ -122,8 +121,6 @@ signupFormView view =
     H.div_ $ do
       D.inputHidden "shp" view
 
-    D.inputHidden "__csrf_token" view
-
     D.inputSubmit "Sign-up"
 
 -------------
@@ -138,17 +135,14 @@ data Signin
   } deriving (Show)
 
 -- | Defining the form
-signinForm :: Monad m => T.Text -> D.Form Html m Signin
-signinForm csrfToken = const Signin
-    <$> "__csrf_token" .: D.text (Just csrfToken)
-    <*> "login"    .: fmap (fmap trim) D.text Nothing
+signinForm :: Monad m => D.Form Html m Signin
+signinForm = Signin
+    <$> "login"    .: fmap (fmap trim) D.text Nothing
     <*> "password" .: fmap (fmap trim) D.text Nothing
 
 -- | Defining the view for the signin form
 signinFormView :: D.View Html -> Html
-signinFormView view =
-  D.form view "signin" $ do
-
+signinFormView view = do
     H.div_ $ do
       D.errorList "login" view
       D.label     "login" view "Name/Email: "
@@ -158,8 +152,6 @@ signinFormView view =
       D.errorList     "password" view
       D.label         "password" view "Password: "
       D.inputPassword "password" view
-
-    D.inputHidden "__csrf_token" view
 
     D.inputSubmit "Sign-in"
 

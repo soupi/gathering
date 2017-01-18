@@ -5,10 +5,14 @@
 
 module Web.Gathering.Forms.Utils where
 
+import Web.Spock
+
+import Web.Gathering.Types
 import Web.Gathering.Html (Html)
 
 import Data.Maybe (catMaybes)
 import qualified Text.Digestive as D
+import qualified Text.Digestive.Lucid.Html5 as D
 import qualified Lucid as H
 import qualified Data.Text as T
 
@@ -35,3 +39,12 @@ whenMaybe :: Monad m => Bool -> m (Maybe a) -> m (Maybe a)
 whenMaybe predicate x
   | predicate = x
   | otherwise = pure Nothing
+
+
+-- | A form with hidden csrf token
+secureForm :: T.Text -> (D.View Html -> Html) -> D.View Html -> Action v Html
+secureForm route formHtml view = do
+  csrfToken <- getCsrfToken
+  pure $ D.form view route $ do
+    H.input_ [ H.type_ "hidden", H.name_ "__csrf_token", H.value_ csrfToken ]
+    formHtml view

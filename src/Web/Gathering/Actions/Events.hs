@@ -14,6 +14,7 @@ import Web.Gathering.Config
 import Web.Gathering.Database
 import Web.Gathering.Actions.Utils
 import Web.Gathering.Actions.Auth (IsAdmin)
+import Web.Gathering.Forms.Utils
 import Web.Gathering.Forms.EditEvent
 import qualified Web.Gathering.Html as Html
 
@@ -55,14 +56,14 @@ displayEvents getEventsQuery mUser = do
 newEventAction :: (ListContains n User xs, ListContains m IsAdmin xs) => Action (HVect xs) ()
 newEventAction = do
   title <- cfgTitle . appConfig <$> getState
-  csrfToken <- getCsrfToken
   let
     -- | Display the form to the user
     formView mErr view = do
-      formViewer title "Sign-up" (editEventFormView path "Create") mErr view
+      form <- secureForm path (editEventFormView "Create") view
+      formViewer title "New Event" form mErr
 
   -- Run the form
-  form <- runForm "" (editEventForm csrfToken Nothing)
+  form <- runForm "" (editEventForm Nothing)
   -- validate the form.
   -- Nothing means failure. will display the form view back to the user when validation fails.
   case form of
@@ -97,11 +98,11 @@ newEventAction = do
 editEventAction :: (ListContains n User xs, ListContains m IsAdmin xs) => EventId -> Action (HVect xs) ()
 editEventAction eid = do
   title <- cfgTitle . appConfig <$> getState
-  csrfToken <- getCsrfToken
   let
     -- | Display the form to the user
     formView mErr view = do
-      formViewer title "Sign-up" (editEventFormView path "Update") mErr view
+      form <- secureForm path (editEventFormView "Update") view
+      formViewer title "Update Event" form mErr
 
   mEditedEvent <- runQuery $ Sql.run (getEventById eid)
   case mEditedEvent of
@@ -115,7 +116,7 @@ editEventAction eid = do
     Right (Just editedEvent) -> do
 
       -- Run the form
-      form <- runForm "" (editEventForm csrfToken $ Just $ eventToEditEvent editedEvent)
+      form <- runForm "" (editEventForm $ Just $ eventToEditEvent editedEvent)
       -- validate the form.
       -- Nothing means failure. will display the form view back to the user when validation fails.
       case form of
@@ -148,7 +149,6 @@ editEventAction eid = do
 deleteEventAction :: (ListContains n User xs, ListContains m IsAdmin xs) => EventId -> Action (HVect xs) ()
 deleteEventAction eid = do
   mEvent <- runQuery $ Sql.run (getEventById eid)
-  csrfToken <- getCsrfToken
 
   case mEvent of
     -- @TODO this is an internal error that we should take care of internally
@@ -164,10 +164,11 @@ deleteEventAction eid = do
         path = "/event/" <> T.pack (show eid) <> "/delete"
         -- | Display the form to the user
         formView mErr view = do
-          formViewer "Delete Event" "Delete" (deleteEventFormView path $ eventName event) mErr view
+          form <- secureForm path (deleteEventFormView $ eventName event) view
+          formViewer "Delete Event" "Delete" form mErr
 
       -- Run the form
-      form <- runForm "" (deleteEventForm csrfToken)
+      form <- runForm "" deleteEventForm
       -- validate the form.
       -- Nothing means failure. will display the form view back to the user when validation fails.
       case form of

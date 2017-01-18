@@ -12,6 +12,7 @@ import Web.Gathering.Types
 import Web.Gathering.Config
 import Web.Gathering.Database
 import Web.Gathering.HashPassword
+import Web.Gathering.Forms.Utils
 import Web.Gathering.Actions.Utils
 import Web.Gathering.Workers.SendEmails
 import qualified Web.Gathering.Forms.Sign as FS
@@ -27,7 +28,6 @@ import qualified Hasql.Session as Sql (run)
 import Data.HVect (HVect(..), ListContains, NotInList, findFirst)
 
 import Web.Spock
-import Web.Spock.Lucid
 import Web.Spock.Digestive
 
 import Lucid (p_)
@@ -101,14 +101,14 @@ adminHook = do
 signInAction :: (ListContains n IsGuest xs, NotInList User xs ~ 'True) => Action (HVect xs) ()
 signInAction = do
   title <- cfgTitle . appConfig <$> getState
-  csrfToken <- getCsrfToken
   let
     -- | Display the form to the user
     formView mErr view = do
-      formViewer title "Sign-in" FS.signinFormView mErr view
+      form <- secureForm "signin" FS.signinFormView view
+      formViewer title "Sign-in" form mErr
 
   -- Run the form
-  form <- runForm "" (FS.signinForm csrfToken)
+  form <- runForm "" FS.signinForm
   -- validate the form.
   -- Nothing means failure. will display the form view back to the user when validation fails.
   case form of
@@ -145,14 +145,14 @@ signInAction = do
 signUpAction :: (ListContains n IsGuest xs, NotInList User xs ~ 'True) => Action (HVect xs) ()
 signUpAction = do
   title <- cfgTitle . appConfig <$> getState
-  csrfToken <- getCsrfToken
   let
     -- | Display the form to the user
     formView mErr view = do
-      formViewer title "Sign-up" FS.signupFormView mErr view
+      form <- secureForm "signup" FS.signupFormView view
+      formViewer title "Sign-up" form mErr
 
   -- Run the form
-  form <- runForm "" (FS.signupForm csrfToken)
+  form <- runForm "" FS.signupForm
   -- validate the form.
   -- Nothing means failure. will display the form view back to the user when validation fails.
   case form of

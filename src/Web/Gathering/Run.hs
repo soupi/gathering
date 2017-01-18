@@ -40,7 +40,7 @@ run = do
   (uncurry AppState -> state) <- parseArgs
   print state
   let connstr = cfgDbConnStr (appConfig state)
-  spockCfg <- (\cfg -> cfg { spc_csrfProtection = True, spc_csrfPostName = ".__csrf_token" })
+  spockCfg <- (\cfg -> cfg { spc_csrfProtection = True })
           <$> defaultSpockCfg EmptySession (PCConn $ hasqlPool connstr) state
 
   -- Background workers
