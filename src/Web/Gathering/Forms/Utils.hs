@@ -32,7 +32,7 @@ validateM res list = renderErrs $ do
 -- | map over the [Text] part to convert to an Html view of all errors
 renderErrs :: Monad m => m (D.Result [T.Text] a) -> m (D.Result Html a)
 renderErrs =
-  fmap $ D.resultMapError $ H.ul_ . mapM_ (H.li_ . H.toHtml)
+  fmap $ D.resultMapError $ H.ul_ . mapM_ (H.li_ [ H.class_ "error" ] . H.toHtml)
 
 -- | a when for Maybe
 whenMaybe :: Monad m => Bool -> m (Maybe a) -> m (Maybe a)

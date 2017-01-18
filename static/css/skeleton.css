@@ -236,6 +236,20 @@ nav li:last-child:after {
 form textarea {
     height: 30rem;
 }
+.error {
+    color: red;
+}
+.digestive-functors-error-list {
+    display: inline;
+}
+.digestive-functors-error {
+    display: inline;
+    list-style: none;
+}
+.digestive-functors-error ul {
+    margin-left: 0;
+    padding-left: 0;
+}
 
 /* Base Styles
 –––––––––––––––––––––––––––––––––––––––––––––––––– */

@@ -30,7 +30,7 @@ import Data.HVect (HVect(..), ListContains, NotInList, findFirst)
 import Web.Spock
 import Web.Spock.Digestive
 
-import Lucid (p_)
+import Lucid (p_, class_)
 
 -----------
 -- Hooks --
@@ -126,7 +126,7 @@ signInAction = do
           text $ T.pack (show err)
 
         Right Nothing ->
-          formView (pure $ p_ "Invalid user name/email.") view
+          formView (pure $ p_ [ class_ "error" ] "Invalid user name/email.") view
 
         Right (Just (user, pass)) -> do
           if verifyPassword (T.encodeUtf8 sinPassword) pass
@@ -134,7 +134,7 @@ signInAction = do
               makeSession (userId user) $
                 redirect "/"
             else
-              formView (pure $ p_ "Invalid password.") view
+              formView (pure $ p_ [ class_ "error" ] "Invalid password.") view
 
 -- | Describe the action to do when a user wants to sign up for the system:
 --
@@ -175,11 +175,11 @@ signUpAction = do
           text $ T.pack (show err)
 
         Right (Just _) -> do
-            formView (pure $ p_ "Username or email already exists.") view
+            formView (pure $ p_ [ class_ "error" ] "Username or email already exists.") view
 
         Right Nothing
           | pass /= passConfirm ->
-            formView (pure $ p_ "Passwords do not match.") view
+            formView (pure $ p_ [ class_ "error" ] "Passwords do not match.") view
 
         -- User does not exists and passwords match. try to create a new user
         Right Nothing -> do
