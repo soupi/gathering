@@ -55,7 +55,11 @@ renderEvents csrfToken title heading mUser eventsAndAtts =
     title
     heading
     (L.nav_ $ navigation mUser)
-    (events csrfToken mUser eventsAndAtts)
+    $ do
+      events csrfToken mUser eventsAndAtts
+      L.script_ [ L.src_ "/js/moment.min.js" ] (mempty :: Text)
+      L.script_ [ L.src_ "/js/gathering.js" ] (mempty :: Text)
+
 
 navigation :: Maybe User -> Html
 navigation mUser = do
