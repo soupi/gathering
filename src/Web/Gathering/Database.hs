@@ -206,7 +206,7 @@ newUser user pass = do
 
 verifyNewUser :: Int32 -> T.Text -> Sql.Transaction (Either T.Text User)
 verifyNewUser key email = do
-  result <- getUserLogin email email
+  result <- getUserLogin " " email
   case result of
     Just _ ->
       pure (Left "This user has already been verified")
@@ -423,6 +423,67 @@ cleanOldNewUsers :: Sql.Transaction ()
 cleanOldNewUsers = Sql.query () $
   Sql.statement
     "delete from new_users where valid_until < now()"
+    mempty
+    SqlD.unit
+    True
+
+-- Lost passwords --
+
+requestResetPassword :: T.Text -> Sql.Transaction (Either T.Text (User, T.Text))
+requestResetPassword email = do
+  mu <- getUserLogin " " email
+  case mu of
+    Nothing ->
+      pure (Left "A user with this email address does not exist.")
+
+    Just (u, _) -> do
+      r <- Sql.query u $
+        Sql.statement
+          "insert into lost_passwords values ($1, md5(random()::text), now() + '1 day') \
+          \on conflict (user_id) do update set valid_until = EXCLUDED.valid_until returning hash"
+          (contramap userId (SqlE.value SqlE.int4))
+          (SqlD.singleRow $ SqlD.value SqlD.text)
+          True
+      pure $ pure (u, r)
+
+
+verifyResetPassword :: T.Text -> T.Text -> BS.ByteString -> Sql.Transaction (Either T.Text User)
+verifyResetPassword hash email newpass = do
+  mu <- Sql.query (email, hash) $
+    Sql.statement
+      "select u.user_id, u.user_name, u.user_email, u.user_isadmin, u.user_wants_updates \
+      \from lost_passwords l inner join users u on l.user_id = u.user_id \
+      \where u.user_email = $1 and l.hash = $2 and l.valid_until > now()"
+      (contramap fst (SqlE.value SqlE.text) <> contramap snd (SqlE.value SqlE.text))
+      (SqlD.maybeRow decodeUser)
+      True
+
+  case mu of
+    Nothing ->
+      pure (Left "Could not find associated email. Maybe the request expired?")
+
+    Just u -> do
+      r <- Sql.query (userId u, newpass) $
+        Sql.statement
+          "update users set user_password_hash = $2 where user_id = $1 returning user_id, user_name, user_email, user_isadmin, user_wants_updates"
+          (contramap fst (SqlE.value SqlE.int4) <> contramap snd (SqlE.value SqlE.bytea))
+          (SqlD.singleRow decodeUser)
+          True
+      pure (pure r)
+
+removeResetPassword :: UserId -> Sql.Transaction ()
+removeResetPassword uid =
+  Sql.query uid $
+    Sql.statement
+      "delete from lost_passwords where user_id = $1"
+      (SqlE.value SqlE.int4)
+      SqlD.unit
+      True
+
+cleanOldLostPasswords :: Sql.Transaction ()
+cleanOldLostPasswords = Sql.query () $
+  Sql.statement
+    "delete from lost_passwords where valid_until < now()"
     mempty
     SqlD.unit
     True

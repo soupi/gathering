@@ -38,6 +38,7 @@ cleaner :: AppState -> Connection -> IO ()
 cleaner state conn = do
   run (runWriteTransaction cleanOldSessions) conn >>= report state
   run (runWriteTransaction cleanOldNewUsers) conn >>= report state
+  run (runWriteTransaction cleanOldLostPasswords) conn >>= report state
 
 report :: AppState -> Either Error t -> IO ()
 report state = \case

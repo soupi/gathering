@@ -1,3 +1,4 @@
+drop table lost_passwords;
 drop table new_events;
 drop table sessions;
 drop table attendants;

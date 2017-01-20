@@ -115,10 +115,10 @@ event mUser e = L.div_ [ class_ "event nine columns" ] $ do
       L.th_ "Location"
       L.th_ "Date"
       L.th_ "Duration"
-    mapM_ (L.td_ . L.toHtml)
-      [ eventLocation e
-      , formatDateTime (eventDateTime e)
-      , formatDiffTime (eventDuration e)
+    mapM_ L.td_
+      [ L.toHtml $ eventLocation e
+      , L.span_ [ L.class_ "datetime" ] . L.toHtml $ formatDateTime (eventDateTime e)
+      , L.toHtml $ formatDiffTime (eventDuration e)
       ]
 
   L.div_ $ do

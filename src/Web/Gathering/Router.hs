@@ -69,6 +69,12 @@ appRouter = prehook baseHook $ do
     get ("verify-user" <//> var <//> var) $ \(key :: Int32) (email :: Text) ->
       verificationAction key email
 
+    getpost ("lost-password") $
+      requestResetAction
+
+    getpost ("reset-password" <//> var <//> var) $ \(hash :: Text) (email :: Text) ->
+      resetPasswordAction hash email
+
   -- signed-in users zone
 
   prehook authHook $ do

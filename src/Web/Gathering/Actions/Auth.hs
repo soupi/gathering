@@ -31,7 +31,7 @@ import Data.HVect (HVect(..), ListContains, NotInList, findFirst)
 import Web.Spock
 import Web.Spock.Digestive
 
-import Lucid (p_, class_)
+import Lucid (p_, class_, toHtml)
 
 -----------
 -- Hooks --
@@ -161,9 +161,10 @@ signUpAction = do
       formView Nothing view
 
     -- Case for bots
-    (_, Just (FS.Signup { supUsername, supSpamHoneyPot }))
+    (_, Just (FS.Signup { supEmail, supSpamHoneyPot }))
       | not (T.null supSpamHoneyPot) -> do
-        text $ "Success! Now logged in as: " <> supUsername -- gotcha!
+        text $ "Verification email sent to " <> supEmail <> ". Note that it will expire in two days."
+          <> "\n\nPlease give it a few minutes and check your spam folder as well."
 
     -- Case for humans
     (view, Just (FS.Signup uname umail pass passConfirm notify _)) -> do
@@ -229,7 +230,8 @@ verificationAction key email = do
     Right (Left err) ->
       text err
 
-    Right (Right user) ->
+    Right (Right user) -> do
+      void . runQuery . Sql.run . runWriteTransaction $ removeNewUser user
       makeSession (userId user) $
         redirect "/"
 
@@ -252,7 +254,6 @@ settingsAction = do
     (view, Nothing) ->
       formView Nothing view
 
-    -- Case for bots
     (_, Just (FS.Settings wantsUpdates )) -> do
       result <- runQuery . Sql.run . runWriteTransaction $ updateUser (user { userWantsUpdates = wantsUpdates })
       case result of
@@ -261,6 +262,79 @@ settingsAction = do
         Right _ -> do
           redirect "/"
 
+-- | Handle a reset password request action
+requestResetAction :: (ListContains n IsGuest xs, NotInList User xs ~ 'True) => Action (HVect xs) ()
+requestResetAction = do
+  title <- cfgTitle . appConfig <$> getState
+  let
+    -- | Display the form to the user
+    formView mErr view = do
+      form <- secureForm "lost-password" FS.requestResetFormView view
+      formViewer title "lost-password" form mErr
+
+  form <- runForm "" FS.requestResetForm
+
+  case form of
+    (view, Nothing) ->
+      formView Nothing view
+
+    (view, Just email) -> do
+      mUserHash <- runQuery . Sql.run . runWriteTransaction $ requestResetPassword email
+      case mUserHash of
+        Left err -> do
+          text $ T.pack (show err)
+
+        Right (Left err) -> do
+          formView (pure . p_ [ class_ "error" ] $ toHtml err) view
+
+        Right (Right (u, h)) -> do
+         state  <- getState
+         result <- liftIO $ (pure <$> notifyResetPassword state u h)
+           `catch` \ex -> pure $ Left (T.pack $ show (ex :: SomeException))
+
+         case result of
+           Left err -> do
+             void . runQuery . Sql.run . runWriteTransaction $ removeResetPassword (userId u)
+             text $ "Failed to send email. Please verify your mail is valid and try again later.\n\n" <> err
+
+           Right () ->
+             text $ "Reset password request sent to " <> email <> ". Note that it will expire in one day."
+               <> "\n\nPlease give it a few minutes and check your spam folder as well."
+
+
+resetPasswordAction :: (ListContains n IsGuest xs, NotInList User xs ~ 'True) => T.Text -> T.Text -> Action (HVect xs) ()
+resetPasswordAction hash email = do
+  title <- cfgTitle . appConfig <$> getState
+  let
+    -- | Display the form to the user
+    formView mErr view = do
+      form <- secureForm ("/reset-password/" <> hash <> "/" <> email) FS.resetPasswordFormView view
+      formViewer title "reset-password" form mErr
+
+  form <- runForm "" FS.resetPasswordForm
+
+  case form of
+    (view, Nothing) ->
+      formView Nothing view
+
+    (view, Just (FS.ResetPassword pass confirmPass))
+      | pass /= confirmPass ->
+          formView (pure $ p_ [ class_ "error" ] "Passwords do not match.") view
+
+    (view, Just (FS.ResetPassword pass _)) -> do
+      hashedPass <- liftIO $ makePassword pass
+      result <- runQuery . Sql.run $ runWriteTransaction $ verifyResetPassword hash email hashedPass
+      case result of
+        Left err ->
+          text . T.pack $ show err
+
+        Right (Left err) ->
+          formView (pure . p_ [ class_ "error" ] $ toHtml err) view
+
+        Right (Right user) -> do
+          void . runQuery . Sql.run $ runWriteTransaction $ removeResetPassword (userId user)
+          makeSession (userId user) $
+            redirect "/"
 
 
 

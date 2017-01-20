@@ -93,8 +93,7 @@ validateMail email = validateM email
 
 -- | Defining the view for the signup form
 signupFormView :: D.View Html -> Html
-signupFormView view =
-  D.form view "signup" $ do
+signupFormView view = do
     H.div_ $ do
       D.errorList "name" view
       D.label     "name" view "Name: "
@@ -155,3 +154,54 @@ signinFormView view = do
 
     D.inputSubmit "Sign-in"
 
+    H.div_ $ do
+      H.a_ [ H.href_ "/lost-password" ]
+        "I lost my password"
+
+--------------------
+-- Reset Password --
+--------------------
+
+-- | Request Reset
+requestResetForm :: Monad m => D.Form Html m T.Text
+requestResetForm =
+  "email" .: D.validateM validateMail (fmap (fmap trim) D.text Nothing)
+
+-- | Defining the view for the reset password form
+requestResetFormView :: D.View Html -> Html
+requestResetFormView view = do
+  H.div_ $ do
+    D.errorList "email" view
+    D.label     "email" view "Email: "
+    D.inputText "email" view
+
+  D.inputSubmit "Request Reset"
+
+
+
+-- | Reset password
+data ResetPassword
+  = ResetPassword
+  { rpPassword :: T.Text
+  , rpPasswordConfirm :: T.Text
+  } deriving (Show)
+
+-- | Definition of a form and it's validation
+resetPasswordForm :: Monad m => D.Form Html m ResetPassword
+resetPasswordForm = ResetPassword
+    <$> "password1" .: D.validateM validatePass (fmap (fmap trim) D.text Nothing)
+    <*> "password2" .: D.text Nothing
+
+-- | Defining the view for the reset password form
+resetPasswordFormView :: D.View Html -> Html
+resetPasswordFormView view = do
+  H.div_ $ do
+    D.errorList     "password1" view
+    D.label         "password1" view "Password: "
+    D.inputPassword "password1" view
+
+  H.div_ $ do
+    D.label         "password2" view "Confirm Password: "
+    D.inputPassword "password2" view
+
+  D.inputSubmit "Reset Password"

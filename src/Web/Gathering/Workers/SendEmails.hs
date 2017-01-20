@@ -136,9 +136,32 @@ notifyVerification state@(AppState config _ _) user = do
             <> userEmail user
             <> ")"
         , ""
-        , "Note that this verification link will expire in two days."
+        , "Note that this link will expire in two days."
         , ""
         , "If this wasn't you, feel free to ignore it!"
+        ]
+      ]
+
+
+notifyResetPassword :: AppState -> User -> Text -> IO ()
+notifyResetPassword state@(AppState config _ _) user hash = do
+  renderSendMail $
+    emailTemplate
+      config
+      user
+      ("Reset your password for " <> cfgTitle config)
+      [ htmlPart $ unlines
+        [ renderText . renderDoc . markdown markdownOptions $
+          "You have requested a password reset link:\n\n"
+        <>"[Click here to reset your password]("
+            <> getDomain state
+            <> "/reset-password/"
+            <> hash
+            <> "/"
+            <> userEmail user
+            <> ")"
+        , ""
+        , "Note that this link will expire in one day."
         ]
       ]
 

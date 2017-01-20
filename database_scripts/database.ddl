@@ -45,3 +45,10 @@ create table new_events (
     send_after timestamptz not null,
     primary key (event_id)
 );
+
+create table lost_passwords (
+    user_id integer references users(user_id),
+    hash text not null,
+    valid_until timestamptz not null,
+    primary key (user_id)
+);
