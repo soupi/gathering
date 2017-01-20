@@ -23,6 +23,8 @@ module Web.Gathering.Config
   , Config(..)
   , AppConfig(..)
   , Command(..)
+  , Mode(..)
+  , Cmd(..)
   , TLSConfig(..)
   , defaultConfig
   , getPort
@@ -30,6 +32,7 @@ module Web.Gathering.Config
   )
 where
 
+import Data.Maybe (fromMaybe)
 import Data.ByteString.Char8 (ByteString, pack)
 import Options.Applicative
 import qualified Data.Text as T
@@ -56,8 +59,8 @@ parseArgs = do
       (cfg, cmd') <- fc
       pure (cfg, cmd')
 
-    _ ->
-      pure (defaultConfig, HTTP 8080)
+    (_, fromMaybe defaultConfig -> cfg, fromMaybe (Serve $ HTTP 8080) -> cmd') ->
+      pure (cfg, cmd')
 
 -- | Parse configuration file
 parseConfig :: FilePath -> IO (AppConfig, Command)
@@ -73,7 +76,7 @@ parseConfig cfgFile = do
   tlscert <- C.lookup cfg "https.cert"
   tlskey  <- C.lookup cfg "https.key"
 
-  cmd' <- case (port, (,,) <$> tlsport <*> tlscert <*> tlskey) of
+  mode <- case (port, (,,) <$> tlsport <*> tlscert <*> tlskey) of
     (Just port', Just (p,c,k)) ->
       pure $ Both port' (TLSConfig p c k)
     (Nothing, Just (p,c,k)) ->
@@ -83,7 +86,7 @@ parseConfig cfgFile = do
     _ ->
       error "http or https configuration missing from configuration file."
 
-  pure (AppConfig name desc domain db, cmd')
+  pure (AppConfig name desc domain db, Serve mode)
 
 
 ------------
@@ -93,7 +96,7 @@ parseConfig cfgFile = do
 -- | Configuration to run the website
 data Config = Config
   { cConfig :: AppConfig
-  , cCmd :: Command
+  , cMode   :: Mode
   }
   deriving (Show)
 
@@ -106,8 +109,21 @@ data AppConfig = AppConfig
   }
   deriving (Show, Eq, Ord)
 
--- | Which mode to run spock
+-- | Choose whether to run a command or serve the app
 data Command
+  = Serve Mode
+  | Cmd Cmd
+  deriving (Show, Read, Eq, Ord)
+
+data Cmd
+  = AddAdmin T.Text
+  | RemAdmin T.Text
+  | DelUser  T.Text
+  deriving (Show, Read, Eq, Ord)
+
+
+-- | Which mode to run spock
+data Mode
   = HTTP Int
   | HTTPS TLSConfig
   | Both Int TLSConfig
@@ -122,14 +138,14 @@ data TLSConfig = TLSConfig
   deriving (Show, Read, Eq, Ord)
 
 -- | returns the port of the command. favors https
-getPort :: Command -> Int
+getPort :: Mode -> Int
 getPort = \case
   HTTP p -> p
   HTTPS tls -> tlsPort tls
   Both _ tls -> tlsPort tls
 
 -- | returns the protocol of the command. favors https
-getProtocol :: Command -> T.Text
+getProtocol :: Mode -> T.Text
 getProtocol = \case
   HTTP _ -> "http"
   HTTPS _ -> "https"
@@ -192,24 +208,29 @@ config = AppConfig
         )
     dbconnstr =
       strOption
-        (long "dbconnection"
+        (long "dbconn"
          <> short 'c'
          <> metavar "DBCONN"
          <> help "Database connection string"
         )
 
 
-
 cmd :: Parser Command
 cmd =
   subparser
-  ( command "http" (info (HTTP <$> httpConfig <**> helper)
-      ( progDesc "Run only in HTTP mode" ))
- <> command "https" (info (HTTPS <$> tlsConfig <**> helper)
-      ( progDesc "Run only in TLS mode" ))
- <> command "both" (info (Both <$> httpConfig <*> tlsConfig <**> helper)
-      ( progDesc "Run both in HTTP and TLS modes" ))
-  )
+    ( command "http" (info (Serve . HTTP <$> httpConfig <**> helper)
+        ( progDesc "Run only in HTTP mode" ))
+   <> command "https" (info (Serve . HTTPS <$> tlsConfig <**> helper)
+        ( progDesc "Run only in TLS mode" ))
+   <> command "both" (info (Serve <$> (Both <$> httpConfig <*> tlsConfig <**> helper))
+        ( progDesc "Run both in HTTP and TLS modes" ))
+   <> command "add-admin" (info (Cmd . AddAdmin <$> addAdminCmd <**> helper)
+        ( progDesc "Promote a user to be an admin" ))
+   <> command "rem-admin" (info (Cmd . RemAdmin <$> remAdminCmd <**> helper)
+        ( progDesc "Demote a user from being an admin" ))
+   <> command "del-user" (info (Cmd . DelUser <$> deleteUserCmd <**> helper)
+        ( progDesc "Delete a user from system" ))
+    )
 
 httpConfig :: Parser Int
 httpConfig =
@@ -237,3 +258,29 @@ fromFile =
    <> help "Path to configuration file"
   )
 
+addAdminCmd :: Parser T.Text
+addAdminCmd = T.pack <$>
+  strOption
+  (long "user"
+   <> short 'u'
+   <> metavar "USER"
+   <> help "Promote a user to be an admin. USER is either user name or email"
+  )
+
+remAdminCmd :: Parser T.Text
+remAdminCmd = T.pack <$>
+  strOption
+  (long "user"
+   <> short 'u'
+   <> metavar "USER"
+   <> help "Demote a user from being admin. USER is either user name or email"
+  )
+
+deleteUserCmd :: Parser T.Text
+deleteUserCmd = T.pack <$>
+  strOption
+  (long "user"
+   <> short 'u'
+   <> metavar "USER"
+   <> help "Delete a user entirely from the system. USER is either user name or email"
+  )

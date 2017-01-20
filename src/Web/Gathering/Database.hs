@@ -240,6 +240,40 @@ updateUser user = do
     (pure . fst)
     result
 
+-- | Give admin to user by name or email
+changeAdminForUser :: Bool -> T.Text -> Sql.Transaction (Either T.Text ())
+changeAdminForUser isAdmin login = do
+  mUser <- getUserLogin login login
+  case mUser of
+    Nothing ->
+      pure $ Left "User not found."
+    Just (user,_) ->
+      const (pure ()) <$> updateUser (user { userIsAdmin = isAdmin })
+
+-- | Delete user by name or email from system
+deleteUser :: T.Text -> Sql.Transaction (Either T.Text ())
+deleteUser login = do
+  mUser <- getUserLogin login login
+  case mUser of
+    Nothing ->
+      pure $ Left "User not found."
+    Just (user,_) -> do
+      Sql.query (userId user) $
+        Sql.statement
+          "delete from attendants where user_id = $1"
+          (SqlE.value SqlE.int4)
+          SqlD.unit
+          True
+
+      Sql.query (userId user) $
+        Sql.statement
+          "delete from users where user_id = $1"
+          (SqlE.value SqlE.int4)
+          SqlD.unit
+          True
+
+      pure $ pure ()
+
 -- | Update an existing user in the users table including the password
 updateUserWithPassword :: User -> BS.ByteString -> Sql.Transaction User
 updateUserWithPassword user pass = do

@@ -3,7 +3,10 @@
 -}
 
 
-module Web.Gathering.Workers.Cleaner where
+module Web.Gathering.Workers.Cleaner
+  ( cleanerWorker
+  )
+where
 
 import Data.Text (pack)
 import Turtle (forever, (<>), sleep)
@@ -13,7 +16,6 @@ import Hasql.Connection
 import Web.Gathering.Database
 import Web.Gathering.Types
 import Web.Gathering.Config
-import Web.Gathering.Utils
 import Web.Gathering.Workers.Logger
 
 cleanerWorker :: AppState -> IO ()

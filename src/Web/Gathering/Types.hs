@@ -31,7 +31,7 @@ data MySession
 -- | The state is the app configuration and won't change
 data AppState = AppState
   { appConfig  :: AppConfig
-  , appCommand :: Command
+  , appMode    :: Mode
   , appLogger  :: TQueue Msg
   }
   deriving (Eq)
