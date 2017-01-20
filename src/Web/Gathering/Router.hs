@@ -81,13 +81,13 @@ appRouter = prehook baseHook $ do
     get "logout" $
       redirect "signout"
 
-    get ("event" <//> var <//> "attending") $ \(eid :: EventId) ->
+    post ("event" <//> var <//> "attending") $ \(eid :: EventId) ->
       attendingAction eid (Just True)
 
-    get ("event" <//> var <//> "not-attending") $ \(eid :: EventId) ->
+    post ("event" <//> var <//> "not-attending") $ \(eid :: EventId) ->
       attendingAction eid (Just False)
 
-    get ("event" <//> var <//> "remove-attending") $ \(eid :: EventId) ->
+    post ("event" <//> var <//> "remove-attending") $ \(eid :: EventId) ->
       attendingAction eid Nothing
 
     -- administrators zone

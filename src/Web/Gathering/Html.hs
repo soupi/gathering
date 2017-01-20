@@ -48,13 +48,13 @@ template title heading nav body =
             "Powered by "
             a_ [href_ "https://github.com/soupi/gathering"] "Gathering"
 
-renderEvents :: Text -> Text -> Maybe User -> [(Event, [Attendant])] -> Html
-renderEvents title heading mUser eventsAndAtts =
+renderEvents :: Text -> Text -> Text -> Maybe User -> [(Event, [Attendant])] -> Html
+renderEvents csrfToken title heading mUser eventsAndAtts =
   template
     title
     heading
     (L.nav_ $ navigation mUser)
-    (events mUser eventsAndAtts)
+    (events csrfToken mUser eventsAndAtts)
 
 navigation :: Maybe User -> Html
 navigation mUser = do
@@ -87,9 +87,9 @@ noEvents heading =
 ------------
 
 -- | Render all events + attendants
-events :: Maybe User -> [(Event, [Attendant])] -> Html
-events mUser =
-  mapM_ (\(e,a) -> L.div_ [ class_ "event-attendants row" ] (event mUser e *> attendants (eventId e) a))
+events :: Text -> Maybe User -> [(Event, [Attendant])] -> Html
+events csrfToken mUser =
+  mapM_ (\(e,a) -> L.div_ [ class_ "event-attendants row" ] (event mUser e *> attendants csrfToken (eventId e) a))
 
 -- | Render an event
 -- @TODO: render time properly and according to the users' timezone
@@ -122,15 +122,15 @@ event mUser e = L.div_ [ class_ "event nine columns" ] $ do
     renderDoc $ markdown markdownOptions (eventDesc e)
 
 -- | Render attendant list
-attendants :: EventId -> [Attendant] -> Html
-attendants eid atts = L.div_ [ class_ "attendants three columns" ] $ do
+attendants :: Text -> EventId -> [Attendant] -> Html
+attendants csrfToken eid atts = L.div_ [ class_ "attendants three columns" ] $ do
   L.div_ $ do
     L.h4_ "Are you going?"
 
     L.ul_ [ class_ "attending" ] . sequence_ $
-      [ L.li_ (L.a_ [ L.href_ $ "/event/" <> pack (show eid) <> "/attending"     ] "Yes")
-      , "/"
-      , L.li_ (L.a_ [ L.href_ $ "/event/" <> pack (show eid) <> "/not-attending" ] "No")
+      [ securePostLink csrfToken ("/event/" <> pack (show eid) <> "/attending") "Yes"
+      , " "
+      , securePostLink csrfToken ("/event/" <> pack (show eid) <> "/not-attending") "No"
       ]
 
   L.div_ $ do
@@ -158,3 +158,9 @@ markdownOptions =
     , preserveHardBreaks = True
     , debug = False
     }
+
+securePostLink :: Text -> Text -> Text -> Html
+securePostLink csrfToken action btn = do
+  L.form_ [ L.class_ "securePostLink", L.enctype_ "application/x-www-form-urlencoded", action_ action, method_ "POST" ] $ do
+    L.input_ [ L.type_ "hidden", L.name_ "__csrf_token", L.value_ csrfToken ]
+    L.input_ [ L.type_ "submit", L.value_ btn ]

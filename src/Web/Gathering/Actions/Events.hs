@@ -31,6 +31,8 @@ import Web.Spock.Digestive
 -- | Display events. allows the caller to specify which events to get from the database and in which order.
 displayEvents :: (Sql.Session [Event]) -> Maybe User -> Action (HVect xs) ()
 displayEvents getEventsQuery mUser = do
+  title <- cfgTitle . appConfig <$> getState
+  csrfToken <- getCsrfToken
   mEventsAndAtts <- runQuery $ Sql.run $ do
     events <- getEventsQuery
     mapM (\e -> (e,) <$> runReadTransaction (getAttendantsForEvent e)) events
@@ -41,12 +43,10 @@ displayEvents getEventsQuery mUser = do
 
     -- case where there are no events to display
     Right eventsAA | null eventsAA -> do
-      title <- cfgTitle . appConfig <$> getState
       lucid $ Html.noEvents title
 
     Right eventsAA -> do
-      title <- cfgTitle . appConfig <$> getState
-      lucid $ Html.renderEvents title title mUser eventsAA
+      lucid $ Html.renderEvents csrfToken title title mUser eventsAA
 
 -- | Describe the action to do when a user wants to create a new event
 --

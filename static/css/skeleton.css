@@ -251,6 +251,19 @@ form textarea {
     padding-left: 0;
 }
 
+.attending {
+    text-align: center;
+}
+
+.securePostLink {
+    display: inline;
+    text-align: center;
+}
+.securePostLink input {
+    display: inline-block !important;
+    padding: 0 20px !important;
+}
+
 /* Base Styles
 –––––––––––––––––––––––––––––––––––––––––––––––––– */
 /* NOTE
