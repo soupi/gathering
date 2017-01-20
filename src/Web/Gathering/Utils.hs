@@ -3,11 +3,8 @@
 
 module Web.Gathering.Utils where
 
-import Turtle (err)
 import Data.Time
-import Data.Monoid
 import qualified Data.Text as T
-import qualified Data.Text.IO as T
 
 fst3 :: (a, b, c) -> a
 fst3 (a, _, _) = a
@@ -62,12 +59,3 @@ parseDiffTime (trim -> T.unpack -> duration) =
   where
     isDigit = (`elem` ['0'..'9'])
 
-putStrTime :: T.Text -> IO ()
-putStrTime txt = do
-  t <- getCurrentTime
-  T.putStrLn ("[" <> formatDateTime t <> "] - " <> txt)
-
-errTime :: T.Text -> IO ()
-errTime txt = do
-  t <- getCurrentTime
-  err ("<<" <> formatDateTime t <> ">> - " <> txt)

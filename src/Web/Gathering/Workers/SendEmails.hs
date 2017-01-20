@@ -12,12 +12,15 @@ module Web.Gathering.Workers.SendEmails where
 import Prelude hiding (unlines)
 import Control.Exception
 import Data.Bool (bool)
-import Turtle
+import Turtle (sleep)
 import Network.Mail.SMTP
 import Hasql.Session
 import Hasql.Connection
 import Control.Monad
-import Data.Text (pack)
+import Data.Maybe (fromMaybe)
+import Data.Monoid
+import Data.Text (pack, Text)
+import Data.Text.Encoding (decodeUtf8)
 import Data.Text.Lazy (unlines, fromStrict)
 import qualified Data.Set as S
 import Lucid (renderText)
@@ -30,13 +33,14 @@ import Web.Gathering.Utils
 import Web.Gathering.Config
 import Web.Gathering.Types
 import Web.Gathering.Database
+import Web.Gathering.Workers.Logger
 
 
 newEventsWorker :: AppState -> IO ()
 newEventsWorker config = forever $ do
-  putStrTime "Events worker starting..."
+  put (appLogger config) "Events worker starting..."
   newEventsWorker' config
-  putStrTime "Events Worker sleeping..."
+  put (appLogger config) "Events Worker sleeping..."
   sleep (60 * 20) -- sleep for 20 minutes
 
 newEventsWorker' :: AppState -> IO ()
@@ -44,10 +48,10 @@ newEventsWorker' config = do
   mConn <- acquire (cfgDbConnStr $ appConfig config)
   case mConn of
     Right conn -> do
-      sendNewEvents config conn `catch` \ex -> errTime ("New Events Worker: " <> (pack $ show (ex :: SomeException)))
+      sendNewEvents config conn `catch` \ex -> err (appLogger config) ("New Events Worker: " <> (pack $ show (ex :: SomeException)))
       release conn
-    Left ex ->
-      errTime ("New Events Worker: " <> pack (show ex))
+    Left (fromMaybe "Unknown error" -> ex) ->
+      err (appLogger config) ("New Events Worker: " <> decodeUtf8 ex)
 
 
 sendNewEvents :: AppState -> Connection -> IO ()
@@ -58,7 +62,7 @@ sendNewEvents config conn = do
       <*> (filter userWantsUpdates <$> runReadTransaction getUsers)
 
   case mNewEventsUsers of
-    Left er -> errTime (pack $ show er)
+    Left er -> err (appLogger config) ("New Events Worker: " <> pack (show er))
 
     Right (newEvents, users) ->
       forM_ newEvents $ \case
@@ -76,7 +80,7 @@ sendNewEvents config conn = do
             mapM (notifyNewEvent config conn event True) (S.toList notifiedUsers)
 
 notifyNewEvent :: AppState -> Connection -> Event -> Bool -> User -> IO (Either Error ())
-notifyNewEvent state@(AppState config _) conn event isEdit user = do
+notifyNewEvent state@(AppState config _ _) conn event isEdit user = do
   renderSendMail $
     emailTemplate
       config
@@ -108,14 +112,14 @@ notifyNewEvent state@(AppState config _) conn event isEdit user = do
   run (runWriteTransaction $ removeNewEvent event) conn
 
 getDomain :: AppState -> Text
-getDomain (AppState config cmd) =
+getDomain (AppState config cmd _) =
   getProtocol cmd
    <> "://"
    <> cfgDomain config
    <> ":" <> (pack . show $ getPort cmd)
 
 notifyVerification :: AppState -> User -> IO ()
-notifyVerification state@(AppState config _) user = do
+notifyVerification state@(AppState config _ _) user = do
   renderSendMail $
     emailTemplate
       config

@@ -14,6 +14,7 @@ import Web.Gathering.Database
 import Web.Gathering.Types
 import Web.Gathering.Config
 import Web.Gathering.Utils
+import Web.Gathering.Workers.Logger
 
 cleanerWorker :: AppState -> IO ()
 cleanerWorker state = forever $ do
@@ -21,24 +22,24 @@ cleanerWorker state = forever $ do
 
   case mConn of
     Right conn -> do
-      putStrTime "Cleaner starting..."
-      cleaner conn
+      put (appLogger state) "Cleaner starting..."
+      cleaner state conn
       release conn
 
     Left ex ->
-      errTime ("Cleaner: " <> pack (show ex))
+      err (appLogger state) ("Cleaner: " <> pack (show ex))
 
-  putStrTime "Cleaner sleeping..."
+  put (appLogger state) "Cleaner sleeping..."
   sleep (60 * 60) -- sleep for 1 hour
 
-cleaner :: Connection -> IO ()
-cleaner conn = do
-  run (runWriteTransaction cleanOldSessions) conn >>= report
-  run (runWriteTransaction cleanOldNewUsers) conn >>= report
+cleaner :: AppState -> Connection -> IO ()
+cleaner state conn = do
+  run (runWriteTransaction cleanOldSessions) conn >>= report state
+  run (runWriteTransaction cleanOldNewUsers) conn >>= report state
 
-report :: Either Error t -> IO ()
-report = \case
+report :: AppState -> Either Error t -> IO ()
+report state = \case
   Right _ ->
     pure ()
   Left ex ->
-    errTime ("Cleaner: " <> pack (show ex))
+    err (appLogger state) ("Cleaner: " <> pack (show ex))

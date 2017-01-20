@@ -32,6 +32,7 @@ library
                        Web.Gathering.Forms.Utils
                        Web.Gathering.Forms.Sign
                        Web.Gathering.Forms.EditEvent
+                       Web.Gathering.Workers.Logger
                        Web.Gathering.Workers.Cleaner
                        Web.Gathering.Workers.SendEmails
 
@@ -63,12 +64,6 @@ library
                      , hasql-transaction
                      -- input validation
                      , html-email-validate
-                     --
-                     , http-types
-                     -- resource handling
-                     , resourcet
-                     -- logging stuff
-                     , monad-logger
                      -- handling configurations
                      , configurator
                      -- json
@@ -90,6 +85,7 @@ library
                      , transformers
                      , mtl
                      , contravariant
+                     , stm
 
   default-extensions:  OverloadedStrings
                      , LambdaCase

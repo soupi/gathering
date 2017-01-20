@@ -17,7 +17,10 @@ import Web.Gathering.Database
 import Web.Gathering.Router
 import Web.Gathering.Workers.SendEmails
 import Web.Gathering.Workers.Cleaner
+import Web.Gathering.Workers.Logger
+import qualified Web.Gathering.Workers.Logger as L
 
+import Data.Text (pack)
 import Control.Monad (void)
 import Control.Concurrent (forkIO)
 import Network.Wai.Handler.Warp (setPort, defaultSettings)
@@ -37,17 +40,21 @@ import Web.Spock.Config
 --
 run :: IO ()
 run = do
-  (uncurry AppState -> state) <- parseArgs
-  print state
-  let connstr = cfgDbConnStr (appConfig state)
-  spockCfg <- (\cfg -> cfg { spc_csrfProtection = True })
-          <$> defaultSpockCfg EmptySession (PCConn $ hasqlPool connstr) state
+  (conf, cmd) <- parseArgs
+
+  -- logger
+  (AppState conf cmd -> state) <- runDefaultLogger
+
+  L.put (appLogger state) (pack $ show (conf, cmd))
 
   -- Background workers
   void $ forkIO $ newEventsWorker state
   void $ forkIO $ cleanerWorker state
 
   -- app
+  let connstr = cfgDbConnStr conf
+  spockCfg <- (\cfg -> cfg { spc_csrfProtection = True })
+          <$> defaultSpockCfg EmptySession (PCConn $ hasqlPool connstr) state
 
   case appCommand state of
     HTTP port ->
