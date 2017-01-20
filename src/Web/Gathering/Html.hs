@@ -12,6 +12,7 @@ import Cheapskate (markdown, Options(..))
 import Control.Monad
 import Data.Text (Text, pack)
 import Data.Monoid
+import Data.List (find)
 
 import Web.Gathering.Utils
 import Web.Gathering.Model
@@ -63,7 +64,9 @@ navigation mUser = do
       L.p_ ("Signed-in as " <> L.span_ [ L.class_ "signed-in" ] (L.toHtml (userName user)))
       L.ul_ . sequence_ $
         [ L.li_ (L.a_ [ L.href_ "/event/new" ] "New Event") | userIsAdmin user ]
-        <> [ L.li_ (L.a_ [ L.href_ "/signout" ] "Sign-out") ]
+        <> [ L.li_ (L.a_ [ L.href_ "/settings" ] "Settings")
+           , L.li_ (L.a_ [ L.href_ "/signout"  ] "Sign-out")
+           ]
 
     Nothing -> do
       L.p_ (L.toHtmlRaw ("<br>" :: Text))
@@ -89,7 +92,7 @@ noEvents heading =
 -- | Render all events + attendants
 events :: Text -> Maybe User -> [(Event, [Attendant])] -> Html
 events csrfToken mUser =
-  mapM_ (\(e,a) -> L.div_ [ class_ "event-attendants row" ] (event mUser e *> attendants csrfToken (eventId e) a))
+  mapM_ (\(e,a) -> L.div_ [ class_ "event-attendants row" ] (event mUser e *> attendants csrfToken (eventId e) mUser a))
 
 -- | Render an event
 -- @TODO: render time properly and according to the users' timezone
@@ -122,15 +125,19 @@ event mUser e = L.div_ [ class_ "event nine columns" ] $ do
     renderDoc $ markdown markdownOptions (eventDesc e)
 
 -- | Render attendant list
-attendants :: Text -> EventId -> [Attendant] -> Html
-attendants csrfToken eid atts = L.div_ [ class_ "attendants three columns" ] $ do
+attendants :: Text -> EventId -> Maybe User -> [Attendant] -> Html
+attendants csrfToken eid mUser atts = L.div_ [ class_ "attendants three columns" ] $ do
   L.div_ $ do
     L.h4_ "Are you going?"
 
     L.ul_ [ class_ "attending" ] . sequence_ $
-      [ securePostLink csrfToken ("/event/" <> pack (show eid) <> "/attending") "Yes"
+      [ securePostLink
+        [ class_ "markgreen" | Just True <- [ isAttending ] ]
+        csrfToken ("/event/" <> pack (show eid) <> "/attending") "Yes"
       , " "
-      , securePostLink csrfToken ("/event/" <> pack (show eid) <> "/not-attending") "No"
+      , securePostLink
+        [ class_ "markred" | Just False <- [ isAttending ] ]
+        csrfToken ("/event/" <> pack (show eid) <> "/not-attending") "No"
       ]
 
   L.div_ $ do
@@ -142,8 +149,15 @@ attendants csrfToken eid atts = L.div_ [ class_ "attendants three columns" ] $ d
     L.ul_ . mapM_ attendant . filter (not . attendantAttending) $ atts
 
   where
-    attendant =
-      L.li_ . L.toHtml . userName . attendantUser
+    attendant :: Attendant -> Html
+    attendant (attendantUser -> u) =
+      L.li_ [ class_ "markuser" | Just True <- [ (==) (userId u) . userId <$> mUser ] ]
+      . L.toHtml
+      . userName
+      $ u
+
+    isAttending =
+      (\uid -> attendantAttending <$> find ((==) uid . (userId . attendantUser)) atts) . userId =<< mUser
 
 
 -----------
@@ -159,8 +173,8 @@ markdownOptions =
     , debug = False
     }
 
-securePostLink :: Text -> Text -> Text -> Html
-securePostLink csrfToken action btn = do
+securePostLink :: [L.Attribute] -> Text -> Text -> Text -> Html
+securePostLink attrs csrfToken action btn = do
   L.form_ [ L.class_ "securePostLink", L.enctype_ "application/x-www-form-urlencoded", action_ action, method_ "POST" ] $ do
     L.input_ [ L.type_ "hidden", L.name_ "__csrf_token", L.value_ csrfToken ]
-    L.input_ [ L.type_ "submit", L.value_ btn ]
+    L.input_ $ [ L.type_ "submit", L.value_ btn ] <> attrs

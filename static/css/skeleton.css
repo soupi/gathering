@@ -264,6 +264,18 @@ form textarea {
     padding: 0 20px !important;
 }
 
+.markuser {
+    color: #359 !important;
+}
+.markgreen {
+    border-color: #2FdE25 !important;
+    border-size: 6px;
+}
+.markred {
+    border-color: #E72E27 !important;
+    border-size: 6px;
+}
+
 /* Base Styles
 –––––––––––––––––––––––––––––––––––––––––––––––––– */
 /* NOTE
