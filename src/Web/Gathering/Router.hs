@@ -17,7 +17,6 @@ import Web.Gathering.Actions.Attending
 import Web.Gathering.Database
 
 import Data.HVect
-import Data.Monoid
 import Data.Int (Int32)
 import Data.Text (Text)
 import Data.Maybe (maybeToList)
@@ -73,10 +72,8 @@ appRouter = prehook baseHook $ do
   -- signed-in users zone
 
   prehook authHook $ do
-    -- temp
-    get "settings" $ do
-      (user :: User) <- fmap findFirst getContext
-      text ("Hello " <> userName user)
+    getpost "settings" $ do
+      settingsAction
 
     get "signout" $
       signOutAction

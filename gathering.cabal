@@ -31,6 +31,7 @@ library
                        Web.Gathering.Actions.Attending
                        Web.Gathering.Forms.Utils
                        Web.Gathering.Forms.Sign
+                       Web.Gathering.Forms.Settings
                        Web.Gathering.Forms.EditEvent
                        Web.Gathering.Workers.Logger
                        Web.Gathering.Workers.Cleaner

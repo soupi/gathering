@@ -16,6 +16,7 @@ import Web.Gathering.Forms.Utils
 import Web.Gathering.Actions.Utils
 import Web.Gathering.Workers.SendEmails
 import qualified Web.Gathering.Forms.Sign as FS
+import qualified Web.Gathering.Forms.Settings as FS
 
 import Data.Int (Int32)
 import Data.Monoid
@@ -231,6 +232,36 @@ verificationAction key email = do
     Right (Right user) ->
       makeSession (userId user) $
         redirect "/"
+
+
+settingsAction :: (ListContains n User xs) => Action (HVect xs) ()
+settingsAction = do
+  user <- fmap findFirst getContext
+  title <- cfgTitle . appConfig <$> getState
+  let
+    -- | Display the form to the user
+    formView mErr view = do
+      form <- secureForm "settings" FS.settingsFormView view
+      formViewer title "Settings" form mErr
+
+  -- Run the form
+  form <- runForm "" (FS.settingsForm user)
+  -- validate the form.
+  -- Nothing means failure. will display the form view back to the user when validation fails.
+  case form of
+    (view, Nothing) ->
+      formView Nothing view
+
+    -- Case for bots
+    (_, Just (FS.Settings wantsUpdates )) -> do
+      result <- runQuery . Sql.run . runWriteTransaction $ updateUser (user { userWantsUpdates = wantsUpdates })
+      case result of
+        Left err -> do
+          text $ T.pack (show err)
+        Right _ -> do
+          redirect "/"
+
+
 
 
 -----------
