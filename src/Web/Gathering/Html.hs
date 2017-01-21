@@ -38,10 +38,10 @@ template title ac nav body =
 
     body_ $ do
       div_ [class_ "container"] $ do
-        H.div_ [ H.class_ "row" ] $ do
+        H.div_ [ H.class_ "top row" ] $ do
           header_ [ H.class_ "eight columns" ] $ do
             h1_ (H.a_ [ H.href_ "/" ] $ H.toHtml $ cfgTitle ac)
-            p_ (H.toHtml $ cfgDesc ac)
+            h5_ [ H.class_ "top-desc" ] (H.toHtml $ cfgDesc ac)
 
           nav_ [class_ "four columns"] nav
 
@@ -67,6 +67,7 @@ renderEvents csrfToken title ac mUser eventsAndAtts =
 
 navigation :: Maybe User -> Html
 navigation mUser = do
+  H.p_ (H.toHtmlRaw ("<br>" :: Text))
   case mUser of
     Just user -> do
       H.p_ ("Signed-in as " <> H.span_ [ H.class_ "signed-in" ] (H.toHtml (userName user)))

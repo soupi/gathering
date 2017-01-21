@@ -129,6 +129,9 @@
     padding-top: 2rem;
     margin-bottom: 2rem;
 }
+.event-attendants:first-child {
+    border-top-width: 0px;
+}
 
 footer {
     margin-top: 2rem;
@@ -142,6 +145,10 @@ footer a {
 }
 header h1 a {
     color: #444744;
+}
+.top {
+    border-bottom: solid 1px #eee;
+    margin-bottom: 2rem;
 }
 
 .attendants {
@@ -274,6 +281,10 @@ form textarea {
 .markred {
     border-color: #E72E27 !important;
     border-size: 6px;
+}
+.top-desc {
+    color: #9f5a5a;
+    margin-left: 2rem;
 }
 
 /* Base Styles
