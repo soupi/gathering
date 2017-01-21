@@ -2,7 +2,7 @@ Gathering is a self hosted website for announcing group events.
 
 This project is also an excuse for me to learn about web development. 
 
-> Status: WIP
+> Status: alpha
 
 > License: Apache License 2.0
 
@@ -26,3 +26,6 @@ Here are the different make options:
 - `clean_all`: Delete the package build and the database
 - `clean_db`: Drop the tables, the database and the 'gather' role
 
+## Configuration
+
+[example.cfg](example.cfg) is an example configuration file you can use as a reference.
