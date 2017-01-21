@@ -5,7 +5,7 @@
 
 module Web.Gathering.Html where
 
-import qualified Lucid as L
+import qualified Lucid as H
 import Lucid.Html5
 import Cheapskate.Lucid
 import Cheapskate (markdown, Options(..))
@@ -16,18 +16,20 @@ import Data.List (find)
 
 import Web.Gathering.Utils
 import Web.Gathering.Model
+import Web.Gathering.Config
 
 
+type Html = H.Html ()
 
-type Html = L.Html ()
 
-template :: Text -> Text -> Html -> Html -> Html
-template title heading nav body =
+-- | A page template
+template :: Text -> AppConfig -> Html -> Html -> Html
+template title ac nav body =
   doctypehtml_ $ do
     head_ $ do
       meta_ [ charset_ "utf-8" ]
 
-      title_ (L.toHtml title)
+      title_ (H.toHtml $ cfgTitle ac <> " - " <> title)
 
       meta_ [ name_ "viewport", content_ "width=device-width, initial-scale=1" ]
 
@@ -36,9 +38,10 @@ template title heading nav body =
 
     body_ $ do
       div_ [class_ "container"] $ do
-        L.div_ [ L.class_ "row" ] $ do
-          header_ [ L.class_ "eight columns" ] $
-            h1_ (L.a_ [ L.href_ "/" ] $ L.toHtml heading)
+        H.div_ [ H.class_ "row" ] $ do
+          header_ [ H.class_ "eight columns" ] $ do
+            h1_ (H.a_ [ H.href_ "/" ] $ H.toHtml $ cfgTitle ac)
+            p_ (H.toHtml $ cfgDesc ac)
 
           nav_ [class_ "four columns"] nav
 
@@ -49,43 +52,44 @@ template title heading nav body =
             "Powered by "
             a_ [href_ "https://github.com/soupi/gathering"] "Gathering"
 
-renderEvents :: Text -> Text -> Text -> Maybe User -> [(Event, [Attendant])] -> Html
-renderEvents csrfToken title heading mUser eventsAndAtts =
+-- | A page with events
+renderEvents :: Text -> Text -> AppConfig -> Maybe User -> [(Event, [Attendant])] -> Html
+renderEvents csrfToken title ac mUser eventsAndAtts =
   template
     title
-    heading
-    (L.nav_ $ navigation mUser)
+    ac
+    (H.nav_ $ navigation mUser)
     $ do
       events csrfToken mUser eventsAndAtts
-      L.script_ [ L.src_ "/js/moment.min.js" ] (mempty :: Text)
-      L.script_ [ L.src_ "/js/gathering.js" ] (mempty :: Text)
+      H.script_ [ H.src_ "/js/moment.min.js" ] (mempty :: Text)
+      H.script_ [ H.src_ "/js/gathering.js" ] (mempty :: Text)
 
 
 navigation :: Maybe User -> Html
 navigation mUser = do
   case mUser of
     Just user -> do
-      L.p_ ("Signed-in as " <> L.span_ [ L.class_ "signed-in" ] (L.toHtml (userName user)))
-      L.ul_ . sequence_ $
-        [ L.li_ (L.a_ [ L.href_ "/event/new" ] "New Event") | userIsAdmin user ]
-        <> [ L.li_ (L.a_ [ L.href_ "/settings" ] "Settings")
-           , L.li_ (L.a_ [ L.href_ "/signout"  ] "Sign-out")
+      H.p_ ("Signed-in as " <> H.span_ [ H.class_ "signed-in" ] (H.toHtml (userName user)))
+      H.ul_ . sequence_ $
+        [ H.li_ (H.a_ [ H.href_ "/event/new" ] "New Event") | userIsAdmin user ]
+        <> [ H.li_ (H.a_ [ H.href_ "/settings" ] "Settings")
+           , H.li_ (H.a_ [ H.href_ "/signout"  ] "Sign-out")
            ]
 
     Nothing -> do
-      L.p_ (L.toHtmlRaw ("<br>" :: Text))
-      L.ul_ . sequence_ $
-        [ L.li_ (L.a_ [ L.href_ "/signin" ] "Sign-in")
-        , L.li_ (L.a_ [ L.href_ "/signup" ] "Sign-up")
+      H.p_ (H.toHtmlRaw ("<br>" :: Text))
+      H.ul_ . sequence_ $
+        [ H.li_ (H.a_ [ H.href_ "/signin" ] "Sign-in")
+        , H.li_ (H.a_ [ H.href_ "/signup" ] "Sign-up")
         ]
 
 
-noEvents :: Text -> Html
-noEvents heading =
+noEvents :: AppConfig -> Html
+noEvents ac =
   template
-    (heading <> " - No events")
-    heading
-    (L.ul_ $ pure ())
+    "No events"
+    ac
+    (H.ul_ $ pure ())
     (p_ "No available events!")
 
 
@@ -96,45 +100,45 @@ noEvents heading =
 -- | Render all events + attendants
 events :: Text -> Maybe User -> [(Event, [Attendant])] -> Html
 events csrfToken mUser =
-  mapM_ (\(e,a) -> L.div_ [ class_ "event-attendants row" ] (event mUser e *> attendants csrfToken (eventId e) mUser a))
+  mapM_ (\(e,a) -> H.div_ [ class_ "event-attendants row" ] (event mUser e *> attendants csrfToken (eventId e) mUser a))
 
 -- | Render an event
 -- @TODO: render time properly and according to the users' timezone
 event :: Maybe User -> Event -> Html
-event mUser e = L.div_ [ class_ "event nine columns" ] $ do
-  L.h2_ $ do
-    L.a_ [href_ ("/event/" <> (pack . show $ eventId e))] $
-      L.toHtml $ eventName e
+event mUser e = H.div_ [ class_ "event nine columns" ] $ do
+  H.h2_ $ do
+    H.a_ [href_ ("/event/" <> (pack . show $ eventId e))] $
+      H.toHtml $ eventName e
 
   when (Just True == fmap userIsAdmin mUser) $ do
     div_ [ class_ "edit-event" ] $ do
       " ("
-      L.a_ [href_ ("/event/" <> (pack . show $ eventId e) <> "/edit")] "edit"
+      H.a_ [href_ ("/event/" <> (pack . show $ eventId e) <> "/edit")] "edit"
       " | "
-      L.a_ [href_ ("/event/" <> (pack . show $ eventId e) <> "/delete")] "delete"
+      H.a_ [href_ ("/event/" <> (pack . show $ eventId e) <> "/delete")] "delete"
       ")"
 
-  L.table_ [ class_ "event-info" ] $ do
-    L.tr_ $ do
-      L.th_ "Location"
-      L.th_ "Date"
-      L.th_ "Duration"
-    mapM_ L.td_
-      [ L.toHtml $ eventLocation e
-      , L.span_ [ L.class_ "datetime" ] . L.toHtml $ formatDateTime (eventDateTime e)
-      , L.toHtml $ formatDiffTime (eventDuration e)
+  H.table_ [ class_ "event-info" ] $ do
+    H.tr_ $ do
+      H.th_ "Location"
+      H.th_ "Date"
+      H.th_ "Duration"
+    mapM_ H.td_
+      [ H.toHtml $ eventLocation e
+      , H.span_ [ H.class_ "datetime" ] . H.toHtml $ formatDateTime (eventDateTime e)
+      , H.toHtml $ formatDiffTime (eventDuration e)
       ]
 
-  L.div_ $ do
+  H.div_ $ do
     renderDoc $ markdown markdownOptions (eventDesc e)
 
 -- | Render attendant list
 attendants :: Text -> EventId -> Maybe User -> [Attendant] -> Html
-attendants csrfToken eid mUser atts = L.div_ [ class_ "attendants three columns" ] $ do
-  L.div_ $ do
-    L.h4_ "Are you going?"
+attendants csrfToken eid mUser atts = H.div_ [ class_ "attendants three columns" ] $ do
+  H.div_ $ do
+    H.h4_ "Are you going?"
 
-    L.ul_ [ class_ "attending" ] . sequence_ $
+    H.ul_ [ class_ "attending" ] . sequence_ $
       [ securePostLink
         [ class_ "markgreen" | Just True <- [ isAttending ] ]
         csrfToken ("/event/" <> pack (show eid) <> "/attending") "Yes"
@@ -144,19 +148,19 @@ attendants csrfToken eid mUser atts = L.div_ [ class_ "attendants three columns"
         csrfToken ("/event/" <> pack (show eid) <> "/not-attending") "No"
       ]
 
-  L.div_ $ do
-    L.h4_ "Going"
-    L.ul_ . mapM_ attendant . filter attendantAttending $ atts
+  H.div_ $ do
+    H.h4_ "Going"
+    H.ul_ . mapM_ attendant . filter attendantAttending $ atts
 
-  L.div_ $ do
-    L.h4_ "Not Going"
-    L.ul_ . mapM_ attendant . filter (not . attendantAttending) $ atts
+  H.div_ $ do
+    H.h4_ "Not Going"
+    H.ul_ . mapM_ attendant . filter (not . attendantAttending) $ atts
 
   where
     attendant :: Attendant -> Html
     attendant (attendantUser -> u) =
-      L.li_ [ class_ "markuser" | Just True <- [ (==) (userId u) . userId <$> mUser ] ]
-      . L.toHtml
+      H.li_ [ class_ "markuser" | Just True <- [ (==) (userId u) . userId <$> mUser ] ]
+      . H.toHtml
       . userName
       $ u
 
@@ -177,8 +181,8 @@ markdownOptions =
     , debug = False
     }
 
-securePostLink :: [L.Attribute] -> Text -> Text -> Text -> Html
+securePostLink :: [H.Attribute] -> Text -> Text -> Text -> Html
 securePostLink attrs csrfToken action btn = do
-  L.form_ [ L.class_ "securePostLink", L.enctype_ "application/x-www-form-urlencoded", action_ action, method_ "POST" ] $ do
-    L.input_ [ L.type_ "hidden", L.name_ "__csrf_token", L.value_ csrfToken ]
-    L.input_ $ [ L.type_ "submit", L.value_ btn ] <> attrs
+  H.form_ [ H.class_ "securePostLink", H.enctype_ "application/x-www-form-urlencoded", action_ action, method_ "POST" ] $ do
+    H.input_ [ H.type_ "hidden", H.name_ "__csrf_token", H.value_ csrfToken ]
+    H.input_ $ [ H.type_ "submit", H.value_ btn ] <> attrs

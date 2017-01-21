@@ -71,8 +71,10 @@ run = do
   case appMode state of
     HTTP port ->
       runSpock port (spock spockCfg appRouter)
+
     HTTPS tls -> do
       runHttps spockCfg tls
+
     Both port tls -> do
       void $ forkIO $ runSpock port (spock spockCfg appRouter)
       runHttps spockCfg tls

@@ -31,22 +31,23 @@ import Web.Spock.Digestive
 -- | Display events. allows the caller to specify which events to get from the database and in which order.
 displayEvents :: (Sql.Session [Event]) -> Maybe User -> Action (HVect xs) ()
 displayEvents getEventsQuery mUser = do
-  title <- cfgTitle . appConfig <$> getState
+  ac <- appConfig <$> getState
   csrfToken <- getCsrfToken
   mEventsAndAtts <- runQuery $ Sql.run $ do
     events <- getEventsQuery
     mapM (\e -> (e,) <$> runReadTransaction (getAttendantsForEvent e)) events
   case mEventsAndAtts of
     -- @TODO this is an internal error that we should take care of internally
-    Left err -> do
-      text $ T.pack (show err)
+    Left (T.pack . show -> e) -> do
+      err e
+      text e
 
     -- case where there are no events to display
     Right eventsAA | null eventsAA -> do
-      lucid $ Html.noEvents title
+      lucid $ Html.noEvents ac
 
     Right eventsAA -> do
-      lucid $ Html.renderEvents csrfToken title title mUser eventsAA
+      lucid $ Html.renderEvents csrfToken "Events" ac mUser eventsAA
 
 -- | Describe the action to do when a user wants to create a new event
 --
@@ -55,12 +56,12 @@ displayEvents getEventsQuery mUser = do
 --
 newEventAction :: (ListContains n User xs, ListContains m IsAdmin xs) => Action (HVect xs) ()
 newEventAction = do
-  title <- cfgTitle . appConfig <$> getState
+  ac <- appConfig <$> getState
   let
     -- | Display the form to the user
     formView mErr view = do
       form <- secureForm path (editEventFormView "Create") view
-      formViewer title "New Event" form mErr
+      formViewer ac "New Event" form mErr
 
   -- Run the form
   form <- runForm "" (editEventForm Nothing)
@@ -78,8 +79,9 @@ newEventAction = do
         result <- runQuery $ Sql.run (runWriteTransaction $ newEvent $ Event 0 name desc loc when dur) -- newEvent doesn't care about event_id
         case result of
           -- @TODO this is an internal error that we should take care of internally
-          Left err -> do
-            text $ T.pack (show err)
+          Left (T.pack . show -> e) -> do
+            err e
+            text e
 
           Right eid ->
             redirect ("/event/" <> T.pack (show eid))
@@ -97,18 +99,19 @@ newEventAction = do
 --
 editEventAction :: (ListContains n User xs, ListContains m IsAdmin xs) => EventId -> Action (HVect xs) ()
 editEventAction eid = do
-  title <- cfgTitle . appConfig <$> getState
+  ac <- appConfig <$> getState
   let
     -- | Display the form to the user
     formView mErr view = do
       form <- secureForm path (editEventFormView "Update") view
-      formViewer title "Update Event" form mErr
+      formViewer ac "Update Event" form mErr
 
   mEditedEvent <- runQuery $ Sql.run (runReadTransaction $ getEventById eid)
   case mEditedEvent of
     -- @TODO this is an internal error that we should take care of internally
-    Left err ->
-      text $ T.pack (show err)
+    Left (T.pack . show -> e) -> do
+      err e
+      text e
 
     Right Nothing ->
       text "Event does not exist"
@@ -131,8 +134,9 @@ editEventAction eid = do
             result <- runQuery $ Sql.run (runWriteTransaction $ updateEvent $ Event eid name desc loc when dur)
             case result of
               -- @TODO this is an internal error that we should take care of internally
-              Left err -> do
-                text $ T.pack (show err)
+              Left (T.pack . show -> e) -> do
+                err e
+                text e
 
               Right _ ->
                 redirect ("/event/" <> T.pack (show eid))
@@ -149,11 +153,13 @@ editEventAction eid = do
 deleteEventAction :: (ListContains n User xs, ListContains m IsAdmin xs) => EventId -> Action (HVect xs) ()
 deleteEventAction eid = do
   mEvent <- runQuery $ Sql.run (runReadTransaction $ getEventById eid)
+  ac <- appConfig <$> getState
 
   case mEvent of
     -- @TODO this is an internal error that we should take care of internally
-    Left err ->
-      text $ T.pack (show err)
+    Left (T.pack . show -> e) -> do
+      err e
+      text e
 
     Right Nothing ->
       text "Event does not exist"
@@ -165,7 +171,7 @@ deleteEventAction eid = do
         -- | Display the form to the user
         formView mErr view = do
           form <- secureForm path (deleteEventFormView $ eventName event) view
-          formViewer "Delete Event" "Delete" form mErr
+          formViewer ac "Delete Event" form mErr
 
       -- Run the form
       form <- runForm "" deleteEventForm
@@ -182,18 +188,23 @@ deleteEventAction eid = do
           result <- runQuery $ Sql.run (runWriteTransaction $ removeEvent event)
           case result of
             -- @TODO this is an internal error that we should take care of internally
-            Left err -> do
-              text $ T.pack (show err)
+            Left (T.pack . show -> e) -> do
+              err e
+              text e
 
             Right _ ->
               redirect "/"
 
 
 reportEventParsingError :: EditEvent -> Action (HVect xs) ()
-reportEventParsingError eEvent =
-  text $ T.unlines
-    [ "Internal error. Please report the following:"
-    , "duration: '" <> eEventDuration eEvent <> "': " <> (T.pack . show . parseDiffTime . eEventDuration $ eEvent)
-    , "datetime: '" <> eEventDateTime eEvent <> "': " <>
-        (T.pack . show $ (parseDateTime (eEventDateTime eEvent) :: Maybe UTCTime))
-    ]
+reportEventParsingError eEvent = do
+  let
+    e = T.unlines
+      [ "Internal error. Please report the following:"
+      , "duration: '" <> eEventDuration eEvent <> "': " <> (T.pack . show . parseDiffTime . eEventDuration $ eEvent)
+      , "datetime: '" <> eEventDateTime eEvent <> "': " <>
+          (T.pack . show $ (parseDateTime (eEventDateTime eEvent) :: Maybe UTCTime))
+      ]
+  err e
+  text e
+  

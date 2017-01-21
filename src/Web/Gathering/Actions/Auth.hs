@@ -9,7 +9,6 @@
 module Web.Gathering.Actions.Auth where
 
 import Web.Gathering.Types
-import Web.Gathering.Config
 import Web.Gathering.Database
 import Web.Gathering.HashPassword
 import Web.Gathering.Forms.Utils
@@ -101,12 +100,12 @@ adminHook = do
 --
 signInAction :: (ListContains n IsGuest xs, NotInList User xs ~ 'True) => Action (HVect xs) ()
 signInAction = do
-  title <- cfgTitle . appConfig <$> getState
+  ac <- appConfig <$> getState
   let
     -- | Display the form to the user
     formView mErr view = do
       form <- secureForm "signin" FS.signinFormView view
-      formViewer title "Sign-in" form mErr
+      formViewer ac "Sign-in" form mErr
 
   -- Run the form
   form <- runForm "" FS.signinForm
@@ -123,8 +122,9 @@ signInAction = do
       maybeUserAndPass <- runQuery $ Sql.run (runReadTransaction $ getUserLogin sinLogin sinLogin)
       case maybeUserAndPass of
         -- @TODO this is an internal error that we should take care of internally
-        Left err -> do
-          text $ T.pack (show err)
+        Left (T.pack . show -> e) -> do
+          err e
+          text e
 
         Right Nothing ->
           formView (pure $ p_ [ class_ "error" ] "Invalid user name/email.") view
@@ -145,12 +145,12 @@ signInAction = do
 --
 signUpAction :: (ListContains n IsGuest xs, NotInList User xs ~ 'True) => Action (HVect xs) ()
 signUpAction = do
-  title <- cfgTitle . appConfig <$> getState
+  ac <- appConfig <$> getState
   let
     -- | Display the form to the user
     formView mErr view = do
       form <- secureForm "signup" FS.signupFormView view
-      formViewer title "Sign-up" form mErr
+      formViewer ac "Sign-up" form mErr
 
   -- Run the form
   form <- runForm "" FS.signupForm
@@ -173,8 +173,9 @@ signUpAction = do
       maybeUserAndPass <- runQuery $ Sql.run (runReadTransaction $ getUserLogin uname umail)
       case maybeUserAndPass of
         -- @TODO this is an internal error that we should take care of internally
-        Left err -> do
-          text $ T.pack (show err)
+        Left (T.pack . show -> e) -> do
+          err e
+          text e
 
         Right (Just _) -> do
             formView (pure $ p_ [ class_ "error" ] "Username or email already exists.") view
@@ -190,11 +191,12 @@ signUpAction = do
             runQuery $ Sql.run $ runWriteTransaction $ newUser (User 0 uname umail False notify) hashedPass
           -- @TODO this is an internal error that we should take care of internally
           case mNewUser of
-            Left err ->
-              text $ T.pack (show err)
+            Left (T.pack . show -> e) -> do
+              err e
+              text e
 
-            Right (Left err) ->
-              text err
+            Right (Left e) ->
+              text e
 
             Right (Right nUser) -> do
               state  <- getState
@@ -205,9 +207,11 @@ signUpAction = do
                   text $ "Verification email sent to " <> userEmail nUser <> ". Note that it will expire in two days."
                     <> "\n\nPlease give it a few minutes and check your spam folder as well."
 
-                Left err -> do
+                Left e -> do
                   void . runQuery . Sql.run $ runWriteTransaction $ removeNewUser nUser
-                  text $ "Failed to send email. Please verify your mail is valid and try again later.\n\n" <> err
+                  err e
+                  -- @TODO internal err
+                  text $ "Failed to send email. Please verify your mail is valid and try again later.\n\n" <> e
 
 signOutAction :: (ListContains n User xs) => Action (HVect xs) ()
 signOutAction = do
@@ -224,11 +228,13 @@ verificationAction :: (ListContains n IsGuest xs, NotInList User xs ~ 'True) => 
 verificationAction key email = do
   result <- runQuery . Sql.run $ runWriteTransaction $ verifyNewUser key email
   case result of
-    Left err ->
-      text . T.pack $ show err
+    -- @TODO internal err
+    Left (T.pack . show -> e) -> do
+      err e
+      text e
 
-    Right (Left err) ->
-      text err
+    Right (Left e) ->
+      text e
 
     Right (Right user) -> do
       void . runQuery . Sql.run . runWriteTransaction $ removeNewUser user
@@ -239,12 +245,12 @@ verificationAction key email = do
 settingsAction :: (ListContains n User xs) => Action (HVect xs) ()
 settingsAction = do
   user <- fmap findFirst getContext
-  title <- cfgTitle . appConfig <$> getState
+  ac <- appConfig <$> getState
   let
     -- | Display the form to the user
     formView mErr view = do
       form <- secureForm "settings" FS.settingsFormView view
-      formViewer title "Settings" form mErr
+      formViewer ac "Settings" form mErr
 
   -- Run the form
   form <- runForm "" (FS.settingsForm user)
@@ -257,20 +263,21 @@ settingsAction = do
     (_, Just (FS.Settings wantsUpdates )) -> do
       result <- runQuery . Sql.run . runWriteTransaction $ updateUser (user { userWantsUpdates = wantsUpdates })
       case result of
-        Left err -> do
-          text $ T.pack (show err)
+        Left (T.pack . show -> e) -> do
+          err e
+          text e
         Right _ -> do
           redirect "/"
 
 -- | Handle a reset password request action
 requestResetAction :: (ListContains n IsGuest xs, NotInList User xs ~ 'True) => Action (HVect xs) ()
 requestResetAction = do
-  title <- cfgTitle . appConfig <$> getState
+  ac <- appConfig <$> getState
   let
     -- | Display the form to the user
     formView mErr view = do
       form <- secureForm "lost-password" FS.requestResetFormView view
-      formViewer title "lost-password" form mErr
+      formViewer ac "lost-password" form mErr
 
   form <- runForm "" FS.requestResetForm
 
@@ -281,11 +288,12 @@ requestResetAction = do
     (view, Just email) -> do
       mUserHash <- runQuery . Sql.run . runWriteTransaction $ requestResetPassword email
       case mUserHash of
-        Left err -> do
-          text $ T.pack (show err)
+        -- @TODO  handle internally?
+        Left (T.pack . show -> e) -> do
+          text e
 
-        Right (Left err) -> do
-          formView (pure . p_ [ class_ "error" ] $ toHtml err) view
+        Right (Left e) -> do
+          formView (pure . p_ [ class_ "error" ] $ toHtml e) view
 
         Right (Right (u, h)) -> do
          state  <- getState
@@ -293,9 +301,10 @@ requestResetAction = do
            `catch` \ex -> pure $ Left (T.pack $ show (ex :: SomeException))
 
          case result of
-           Left err -> do
+           Left e -> do
              void . runQuery . Sql.run . runWriteTransaction $ removeResetPassword (userId u)
-             text $ "Failed to send email. Please verify your mail is valid and try again later.\n\n" <> err
+             err e
+             text $ "Failed to send email. Please verify your mail is valid and try again later.\n\n" <> e
 
            Right () ->
              text $ "Reset password request sent to " <> email <> ". Note that it will expire in one day."
@@ -304,12 +313,12 @@ requestResetAction = do
 
 resetPasswordAction :: (ListContains n IsGuest xs, NotInList User xs ~ 'True) => T.Text -> T.Text -> Action (HVect xs) ()
 resetPasswordAction hash email = do
-  title <- cfgTitle . appConfig <$> getState
+  ac <- appConfig <$> getState
   let
     -- | Display the form to the user
     formView mErr view = do
       form <- secureForm ("/reset-password/" <> hash <> "/" <> email) FS.resetPasswordFormView view
-      formViewer title "reset-password" form mErr
+      formViewer ac "reset-password" form mErr
 
   form <- runForm "" FS.resetPasswordForm
 
@@ -325,11 +334,12 @@ resetPasswordAction hash email = do
       hashedPass <- liftIO $ makePassword pass
       result <- runQuery . Sql.run $ runWriteTransaction $ verifyResetPassword hash email hashedPass
       case result of
-        Left err ->
-          text . T.pack $ show err
+        Left (T.pack . show -> e) -> do
+          err e
+          text e
 
-        Right (Left err) ->
-          formView (pure . p_ [ class_ "error" ] $ toHtml err) view
+        Right (Left e) ->
+          formView (pure . p_ [ class_ "error" ] $ toHtml e) view
 
         Right (Right user) -> do
           void . runQuery . Sql.run $ runWriteTransaction $ removeResetPassword (userId user)
@@ -350,8 +360,9 @@ makeSession uid act = do
   sessionRegenerateId
   sessRes <- runQuery $ Sql.run $ runWriteTransaction $ upsertUserSession uid
   case sessRes of
-    Left err -> do
-      text $ T.pack (show err)
+    Left (T.pack . show -> e) -> do
+      err e
+      text e
     Right _ -> do
       writeSession (SessionId uid)
       act
@@ -368,8 +379,9 @@ maybeUser action = do
       emUser <- runQuery $ Sql.run (runReadTransaction $ getUserBySession uid)
       case emUser of
         -- @TODO this is an internal error that we should take care of internally
-        Left err ->
-          text $ T.pack $ show err
+        Left (T.pack . show -> e) -> do
+          err e
+          text e
 
         Right mu ->
           action mu

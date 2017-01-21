@@ -10,6 +10,7 @@ module Web.Gathering.Actions.Attending where
 
 import Web.Gathering.Types
 import Web.Gathering.Database
+import Web.Gathering.Actions.Utils
 
 import qualified Data.Text as T
 import qualified Hasql.Session as Sql (run)
@@ -29,8 +30,9 @@ attendingAction eid mIsAttending = do
   getResult <- runQuery $ Sql.run (runReadTransaction $ getEventById eid)
   case getResult of
     -- @TODO this is an internal error that we should take care of internally
-    Left err -> do
-      text $ T.pack (show err)
+    Left (T.pack . show -> e) -> do
+      err e
+      text e
 
     Right Nothing -> do
       text "Event not found."
@@ -43,7 +45,9 @@ attendingAction eid mIsAttending = do
           Nothing ->
             runWriteTransaction $ removeAttendant event user
       case upsertResult of
-        Left err -> do
-          text $ T.pack (show err)
+        -- @TODO this is an internal error that we should take care of internally
+        Left (T.pack . show -> e) -> do
+          err e
+          text e
         Right _ ->
           redirect $ "/event/" <> T.pack (show eid)
