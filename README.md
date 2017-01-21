@@ -16,7 +16,7 @@ This package requires:
 
 ## Setup
 
-Here are the different make options:
+Here are the different `make` options:
 
 - `setup`: Install GHC and deps for the package using stack
 - `initdb`: Create the `gather` role and database and the relevant tables
@@ -29,3 +29,12 @@ Here are the different make options:
 ## Configuration
 
 [example.cfg](example.cfg) is an example configuration file you can use as a reference.
+
+Use `gather --config example.cfg` to run gather with the configuration taken from the `example.cfg` file.
+
+## Additional commands
+
+- `gather add-admin --user soupi`: Promote the user `soupi` to admin
+- `gather rem-admin --user soupi`: Demote  the user `soupi` from being admin
+- `gather del-user  --user soupi`: Delete  the user `soupi` from the system
+
