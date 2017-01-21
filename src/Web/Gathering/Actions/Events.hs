@@ -10,7 +10,6 @@ module Web.Gathering.Actions.Events where
 
 import Web.Gathering.Utils
 import Web.Gathering.Types
-import Web.Gathering.Config
 import Web.Gathering.Database
 import Web.Gathering.Actions.Utils
 import Web.Gathering.Actions.Auth (IsAdmin)
@@ -19,7 +18,7 @@ import Web.Gathering.Forms.EditEvent
 import qualified Web.Gathering.Html as Html
 
 import qualified Data.Text as T
-import qualified Hasql.Session as Sql (run, Session)
+import qualified Hasql.Transaction as Sql (Transaction)
 import Data.HVect (HVect(..), ListContains)
 import Data.Monoid
 import Data.Time
@@ -29,13 +28,13 @@ import Web.Spock.Lucid
 import Web.Spock.Digestive
 
 -- | Display events. allows the caller to specify which events to get from the database and in which order.
-displayEvents :: (Sql.Session [Event]) -> Maybe User -> Action (HVect xs) ()
+displayEvents :: (Sql.Transaction [Event]) -> Maybe User -> Action (HVect xs) ()
 displayEvents getEventsQuery mUser = do
   ac <- appConfig <$> getState
   csrfToken <- getCsrfToken
-  mEventsAndAtts <- runQuery $ Sql.run $ do
+  mEventsAndAtts <- readQuery $ do
     events <- getEventsQuery
-    mapM (\e -> (e,) <$> runReadTransaction (getAttendantsForEvent e)) events
+    mapM (\e -> (e,) <$> getAttendantsForEvent e) events
   case mEventsAndAtts of
     -- @TODO this is an internal error that we should take care of internally
     Left (T.pack . show -> e) -> do
@@ -76,7 +75,7 @@ newEventAction = do
       | Just when <- parseDateTime mWhen
       , Just dur  <- parseDiffTime mDur
       -> do
-        result <- runQuery $ Sql.run (runWriteTransaction $ newEvent $ Event 0 name desc loc when dur) -- newEvent doesn't care about event_id
+        result <- writeQuery (newEvent $ Event 0 name desc loc when dur) -- newEvent doesn't care about event_id
         case result of
           -- @TODO this is an internal error that we should take care of internally
           Left (T.pack . show -> e) -> do
@@ -106,7 +105,7 @@ editEventAction eid = do
       form <- secureForm path (editEventFormView "Update") view
       formViewer ac "Update Event" form mErr
 
-  mEditedEvent <- runQuery $ Sql.run (runReadTransaction $ getEventById eid)
+  mEditedEvent <- readQuery (getEventById eid)
   case mEditedEvent of
     -- @TODO this is an internal error that we should take care of internally
     Left (T.pack . show -> e) -> do
@@ -131,7 +130,7 @@ editEventAction eid = do
           | Just when <- parseDateTime mWhen
           , Just dur  <- parseDiffTime mDur
           -> do
-            result <- runQuery $ Sql.run (runWriteTransaction $ updateEvent $ Event eid name desc loc when dur)
+            result <- writeQuery (updateEvent $ Event eid name desc loc when dur)
             case result of
               -- @TODO this is an internal error that we should take care of internally
               Left (T.pack . show -> e) -> do
@@ -152,7 +151,7 @@ editEventAction eid = do
 --
 deleteEventAction :: (ListContains n User xs, ListContains m IsAdmin xs) => EventId -> Action (HVect xs) ()
 deleteEventAction eid = do
-  mEvent <- runQuery $ Sql.run (runReadTransaction $ getEventById eid)
+  mEvent <- readQuery (getEventById eid)
   ac <- appConfig <$> getState
 
   case mEvent of
@@ -185,7 +184,7 @@ deleteEventAction eid = do
           redirect $ "/event/" <> T.pack (show $ eventId event)
 
         (_, Just (DeleteEvent True)) -> do
-          result <- runQuery $ Sql.run (runWriteTransaction $ removeEvent event)
+          result <- writeQuery (removeEvent event)
           case result of
             -- @TODO this is an internal error that we should take care of internally
             Left (T.pack . show -> e) -> do

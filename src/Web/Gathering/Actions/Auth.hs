@@ -24,7 +24,6 @@ import Control.Monad.IO.Class (liftIO)
 import Control.Exception
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified Hasql.Session as Sql (run)
 import Data.HVect (HVect(..), ListContains, NotInList, findFirst)
 
 import Web.Spock
@@ -119,7 +118,7 @@ signInAction = do
     (view, Just FS.Signin{sinLogin, sinPassword}) -> do
       -- Query the db for a match for the login
       -- (will check if sinLogin match either the user name or email)
-      maybeUserAndPass <- runQuery $ Sql.run (runReadTransaction $ getUserLogin sinLogin sinLogin)
+      maybeUserAndPass <- readQuery (getUserLogin sinLogin sinLogin)
       case maybeUserAndPass of
         -- @TODO this is an internal error that we should take care of internally
         Left (T.pack . show -> e) -> do
@@ -170,7 +169,7 @@ signUpAction = do
     (view, Just (FS.Signup uname umail pass passConfirm notify _)) -> do
       -- Query the db for a match for the login
       -- will check if the users' requested name or email already exists
-      maybeUserAndPass <- runQuery $ Sql.run (runReadTransaction $ getUserLogin uname umail)
+      maybeUserAndPass <- readQuery (getUserLogin uname umail)
       case maybeUserAndPass of
         -- @TODO this is an internal error that we should take care of internally
         Left (T.pack . show -> e) -> do
@@ -188,7 +187,7 @@ signUpAction = do
         Right Nothing -> do
           hashedPass <- liftIO $ makePassword pass
           mNewUser <-
-            runQuery $ Sql.run $ runWriteTransaction $ newUser (User 0 uname umail False notify) hashedPass
+            writeQuery $ newUser (User 0 uname umail False notify) hashedPass
           -- @TODO this is an internal error that we should take care of internally
           case mNewUser of
             Left (T.pack . show -> e) -> do
@@ -208,7 +207,7 @@ signUpAction = do
                     <> "\n\nPlease give it a few minutes and check your spam folder as well."
 
                 Left e -> do
-                  void . runQuery . Sql.run $ runWriteTransaction $ removeNewUser nUser
+                  void . writeQuery $ removeNewUser nUser
                   err e
                   -- @TODO internal err
                   text $ "Failed to send email. Please verify your mail is valid and try again later.\n\n" <> e
@@ -221,12 +220,12 @@ signOutAction = do
       text "Not logged in."
     SessionId uid -> do
       writeSession EmptySession
-      void $ runQuery $ Sql.run $ runWriteTransaction $ killSession uid -- maybe log this?
+      void . writeQuery $ killSession uid -- maybe log this?
       redirect "/"
 
 verificationAction :: (ListContains n IsGuest xs, NotInList User xs ~ 'True) => Int32 -> T.Text -> Action (HVect xs) ()
 verificationAction key email = do
-  result <- runQuery . Sql.run $ runWriteTransaction $ verifyNewUser key email
+  result <- writeQuery $ verifyNewUser key email
   case result of
     -- @TODO internal err
     Left (T.pack . show -> e) -> do
@@ -237,7 +236,7 @@ verificationAction key email = do
       text e
 
     Right (Right user) -> do
-      void . runQuery . Sql.run . runWriteTransaction $ removeNewUser user
+      void . writeQuery $ removeNewUser user
       makeSession (userId user) $
         redirect "/"
 
@@ -261,7 +260,7 @@ settingsAction = do
       formView Nothing view
 
     (_, Just (FS.Settings wantsUpdates )) -> do
-      result <- runQuery . Sql.run . runWriteTransaction $ updateUser (user { userWantsUpdates = wantsUpdates })
+      result <- writeQuery $ updateUser (user { userWantsUpdates = wantsUpdates })
       case result of
         Left (T.pack . show -> e) -> do
           err e
@@ -286,7 +285,7 @@ requestResetAction = do
       formView Nothing view
 
     (view, Just email) -> do
-      mUserHash <- runQuery . Sql.run . runWriteTransaction $ requestResetPassword email
+      mUserHash <- writeQuery $ requestResetPassword email
       case mUserHash of
         -- @TODO  handle internally?
         Left (T.pack . show -> e) -> do
@@ -302,7 +301,7 @@ requestResetAction = do
 
          case result of
            Left e -> do
-             void . runQuery . Sql.run . runWriteTransaction $ removeResetPassword (userId u)
+             void . writeQuery $ removeResetPassword (userId u)
              err e
              text $ "Failed to send email. Please verify your mail is valid and try again later.\n\n" <> e
 
@@ -332,7 +331,7 @@ resetPasswordAction hash email = do
 
     (view, Just (FS.ResetPassword pass _)) -> do
       hashedPass <- liftIO $ makePassword pass
-      result <- runQuery . Sql.run $ runWriteTransaction $ verifyResetPassword hash email hashedPass
+      result <- writeQuery $ verifyResetPassword hash email hashedPass
       case result of
         Left (T.pack . show -> e) -> do
           err e
@@ -342,7 +341,7 @@ resetPasswordAction hash email = do
           formView (pure . p_ [ class_ "error" ] $ toHtml e) view
 
         Right (Right user) -> do
-          void . runQuery . Sql.run $ runWriteTransaction $ removeResetPassword (userId user)
+          void . writeQuery $ removeResetPassword (userId user)
           makeSession (userId user) $
             redirect "/"
 
@@ -358,7 +357,7 @@ makeSession :: (ListContains n IsGuest xs, NotInList User xs ~ 'True)
             => UserId -> Action (HVect xs) () -> Action (HVect xs) ()
 makeSession uid act = do
   sessionRegenerateId
-  sessRes <- runQuery $ Sql.run $ runWriteTransaction $ upsertUserSession uid
+  sessRes <- writeQuery $ upsertUserSession uid
   case sessRes of
     Left (T.pack . show -> e) -> do
       err e
@@ -376,7 +375,7 @@ maybeUser action = do
       action Nothing
 
     SessionId uid -> do
-      emUser <- runQuery $ Sql.run (runReadTransaction $ getUserBySession uid)
+      emUser <- readQuery (getUserBySession uid)
       case emUser of
         -- @TODO this is an internal error that we should take care of internally
         Left (T.pack . show -> e) -> do

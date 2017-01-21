@@ -13,7 +13,6 @@ import Web.Gathering.Database
 import Web.Gathering.Actions.Utils
 
 import qualified Data.Text as T
-import qualified Hasql.Session as Sql (run)
 import Data.HVect (HVect(..), ListContains, findFirst)
 import Data.Monoid
 
@@ -27,7 +26,7 @@ import Web.Spock
 attendingAction :: (ListContains n User xs) => EventId -> Maybe Bool -> Action (HVect xs) ()
 attendingAction eid mIsAttending = do
   user <- fmap findFirst getContext
-  getResult <- runQuery $ Sql.run (runReadTransaction $ getEventById eid)
+  getResult <- readQuery (getEventById eid)
   case getResult of
     -- @TODO this is an internal error that we should take care of internally
     Left (T.pack . show -> e) -> do
@@ -38,12 +37,12 @@ attendingAction eid mIsAttending = do
       text "Event not found."
 
     Right (Just event) -> do
-      upsertResult <- runQuery $ Sql.run $
+      upsertResult <- writeQuery $
         case mIsAttending of
           Just isAttending ->
-            runWriteTransaction $ upsertAttendant event (Attendant user isAttending isAttending)
+            upsertAttendant event (Attendant user isAttending isAttending)
           Nothing ->
-            runWriteTransaction $ removeAttendant event user
+            removeAttendant event user
       case upsertResult of
         -- @TODO this is an internal error that we should take care of internally
         Left (T.pack . show -> e) -> do

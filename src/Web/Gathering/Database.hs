@@ -1,7 +1,9 @@
 {- | Module describing the database interaction
 
-functions that return `Session <result>` can be run with
-`Web.Spock.runQuery . Hasql.Session.run`
+For functions that return `Transaction <result>`:
+
+- If it only reads use `runReadTransaction` or `readQuery` in an Action context
+- If it writes as well use `runWriteTransaction` or `writeQuery` in an Action context
 
 Queries and Insert/Upsert queries are the interesting ones.
 
@@ -11,8 +13,10 @@ module Web.Gathering.Database where
 
 import Web.Gathering.Model
 import Web.Gathering.Utils
+import Web.Gathering.Types
 
 import Web.Spock.Config
+import qualified Web.Spock as S
 import qualified Web.Spock.Config as SC
 import qualified Hasql.Connection as Sql
 import qualified Hasql.Query as Sql
@@ -32,6 +36,11 @@ import Data.Int (Int32)
 import Data.List (find)
 import Data.Maybe (mapMaybe)
 
+readQuery :: Sql.Transaction a -> Action v (Either Sql.Error a)
+readQuery = S.runQuery . Sql.run . runReadTransaction
+
+writeQuery :: Sql.Transaction a -> Action v (Either Sql.Error a)
+writeQuery = S.runQuery . Sql.run . runWriteTransaction
 
 runReadTransaction :: Sql.Transaction a -> Sql.Session a
 runReadTransaction = Sql.transaction Sql.Serializable Sql.Read

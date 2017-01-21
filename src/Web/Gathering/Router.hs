@@ -41,16 +41,16 @@ appRouter = prehook baseHook $ do
   -- display events
 
   get root $ maybeUser $
-    displayEvents (take 5 <$> runReadTransaction getFutureEvents)
+    displayEvents (take 5 <$> getFutureEvents)
 
   get "events" $ maybeUser $
-    displayEvents $ runReadTransaction getFutureEvents
+    displayEvents getFutureEvents
 
   get ("events" <//> "past") $ maybeUser $
-    displayEvents $ runReadTransaction getPastEvents
+    displayEvents getPastEvents
 
   get ("event" <//> var) $ \(eid :: EventId) ->
-    maybeUser $ displayEvents (maybeToList <$> runReadTransaction (getEventById eid))
+    maybeUser $ displayEvents (maybeToList <$> getEventById eid)
 
   -- authentication
 
