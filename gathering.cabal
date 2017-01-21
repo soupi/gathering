@@ -10,8 +10,12 @@ maintainer:          gilmi@protonmail.com
 copyright:           2017 Gil Mizrahi
 category:            Web
 build-type:          Simple
-extra-source-files:  README.md
 cabal-version:       >=1.10
+extra-source-files:  README.md
+                     database_scripts/database.ddl
+                     database_scripts/delete_database.ddl
+                     database_scripts/gather.ddl
+                     database_scripts/delete_gather.ddl
 
 library
   hs-source-dirs:      src
