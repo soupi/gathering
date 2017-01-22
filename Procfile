@@ -1,1 +1,1 @@
-web: stack exec gather --  --port=$PORT
+web: /app/.local/bin/gather --port=$PORT
