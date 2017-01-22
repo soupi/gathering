@@ -59,6 +59,10 @@ parseArgs = do
       (cfg, cmd') <- fc
       pure (cfg, cmd')
 
+    (Just fc, Nothing, Just cmd') -> do
+      (cfg, _) <- fc
+      pure (cfg, cmd')
+
     (_, fromMaybe defaultConfig -> cfg, fromMaybe (Serve $ HTTP 8080) -> cmd') ->
       pure (cfg, cmd')
 
