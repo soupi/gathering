@@ -1,1 +1,1 @@
-web: gather --config example.cfg
+web: stack exec gather -- --config example.cfg
