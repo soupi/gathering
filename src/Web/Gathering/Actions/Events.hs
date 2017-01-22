@@ -41,10 +41,6 @@ displayEvents getEventsQuery mUser = do
       err e
       text e
 
-    -- case where there are no events to display
-    Right eventsAA | null eventsAA -> do
-      lucid $ Html.noEvents ac
-
     Right eventsAA -> do
       lucid $ Html.renderEvents csrfToken "Events" ac mUser eventsAA
 

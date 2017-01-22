@@ -162,6 +162,7 @@ signUpAction = do
     -- Case for bots
     (_, Just (FS.Signup { supEmail, supSpamHoneyPot }))
       | not (T.null supSpamHoneyPot) -> do
+        warn ("HoneyPot detected: " <> supEmail)
         text $ "Verification email sent to " <> supEmail <> ". Note that it will expire in two days."
           <> "\n\nPlease give it a few minutes and check your spam folder as well."
 

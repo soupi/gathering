@@ -60,7 +60,9 @@ renderEvents csrfToken title ac mUser eventsAndAtts =
     ac
     (H.nav_ $ navigation mUser)
     $ do
-      events csrfToken mUser eventsAndAtts
+      case eventsAndAtts of
+        [] -> p_ "No available events!"
+        _  -> events csrfToken mUser eventsAndAtts
       H.script_ [ H.src_ "/js/moment.min.js" ] (mempty :: Text)
       H.script_ [ H.src_ "/js/gathering.js" ] (mempty :: Text)
 
@@ -83,15 +85,6 @@ navigation mUser = do
         [ H.li_ (H.a_ [ H.href_ "/signin" ] "Sign-in")
         , H.li_ (H.a_ [ H.href_ "/signup" ] "Sign-up")
         ]
-
-
-noEvents :: AppConfig -> Html
-noEvents ac =
-  template
-    "No events"
-    ac
-    (H.ul_ $ pure ())
-    (p_ "No available events!")
 
 
 ------------
