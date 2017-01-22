@@ -1,1 +1,1 @@
-web: bin/gather
+web: bin/gather --config example.cfg
