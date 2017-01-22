@@ -1,1 +1,1 @@
-web: gather
+web: bin/gather
