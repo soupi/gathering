@@ -295,7 +295,7 @@ are based on 10px sizing. So basically 1.5rem = 15px :) */
 html {
   font-size: 70%; }
 body {
-  font-size: 1.6em; /* currently ems cause chrome bug misinterpreting rems on body element */
+  font-size: 1.4em; /* currently ems cause chrome bug misinterpreting rems on body element */
   line-height: 1.2;
   font-family: Helvetica, Arial, sans-serif;
   color: #222;
@@ -308,12 +308,12 @@ h1, h2, h3, h4, h5, h6 {
   margin-bottom: 1.6rem;
   font-weight: 500;
 }
-h1 { font-size: 3.4rem; line-height: 1.1;  letter-spacing: -.05rem;}
-h2 { font-size: 3.0rem; line-height: 1.15; letter-spacing: -.05rem; }
-h3 { font-size: 2.4rem; line-height: 1.2;  letter-spacing: -.05rem; }
-h4 { font-size: 2.0rem; line-height: 1.25; letter-spacing: -.03rem; }
-h5 { font-size: 1.8rem; line-height: 1.4;  letter-spacing: -.02rem; }
-h6 { font-size: 1.5rem; line-height: 1.5;  letter-spacing: 0; }
+h1 { font-size: 2.6rem; line-height: 1.1;  letter-spacing: -.05rem;}
+h2 { font-size: 2.2rem; line-height: 1.15; letter-spacing: -.05rem; }
+h3 { font-size: 1.8rem; line-height: 1.2;  letter-spacing: -.05rem; }
+h4 { font-size: 1.6rem; line-height: 1.25; letter-spacing: -.03rem; }
+h5 { font-size: 1.4rem; line-height: 1.4;  letter-spacing: -.02rem; }
+h6 { font-size: 1.4rem; line-height: 1.5;  letter-spacing: 0; }
 
 /* Larger than phablet */
 @media (min-width: 550px) {
@@ -323,6 +323,7 @@ h6 { font-size: 1.5rem; line-height: 1.5;  letter-spacing: 0; }
   h4 { font-size: 1.8rem; }
   h5 { font-size: 1.6rem; }
   h6 { font-size: 1.5rem; }
+  body { font-size: 1.6em; }
 }
 
 p {
