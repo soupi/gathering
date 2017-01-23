@@ -1,8 +1,15 @@
-{- | Send emails on
+{- | Send emails to users
+
+Defines a worker that will send emails for:
 
 - New user verifications
 - New event creations
 - Event updates
+
+and defines functions to send mails for:
+
+- Sign-up verification
+- Reset password
 
 -}
 
@@ -36,6 +43,7 @@ import Web.Gathering.Database
 import Web.Gathering.Workers.Logger
 
 
+-- | Will run forever and will send emails on new events or event changes every 20 minutes
 newEventsWorker :: AppState -> IO ()
 newEventsWorker config = forever $ do
   put (appLogger config) "Events worker starting..."
@@ -43,6 +51,7 @@ newEventsWorker config = forever $ do
   put (appLogger config) "Events Worker sleeping..."
   sleep (60 * 20) -- sleep for 20 minutes
 
+-- | Will send emails on new events or event
 newEventsWorker' :: AppState -> IO ()
 newEventsWorker' config = do
   mConn <- acquire (cfgDbConnStr $ appConfig config)
@@ -53,7 +62,7 @@ newEventsWorker' config = do
     Left (fromMaybe "Unknown error" -> ex) ->
       err (appLogger config) ("New Events Worker: " <> decodeUtf8 ex)
 
-
+-- | Search the events that messages should be sent for them and send the messages
 sendNewEvents :: AppState -> Connection -> IO ()
 sendNewEvents config conn = do
   mNewEventsUsers <- flip run conn $
@@ -79,6 +88,7 @@ sendNewEvents config conn = do
           in
             mapM (notifyNewEvent config conn event True) (S.toList notifiedUsers)
 
+-- | Send new event or event edited message
 notifyNewEvent :: AppState -> Connection -> Event -> Bool -> User -> IO (Either Error ())
 notifyNewEvent state@(AppState config _ _) conn event isEdit user = do
   renderSendMail $
@@ -88,17 +98,17 @@ notifyNewEvent state@(AppState config _ _) conn event isEdit user = do
       (bool "New event @" "Event updated @" isEdit <> cfgTitle config <> ": '" <> eventName event <> "'")
       [ htmlPart $ unlines
         [ bool "A new event has been announced:" "This event has been updated:" isEdit
-        , ""
+        , "\n"
         , fromStrict $ eventName event
-        , ""
-        , renderText . renderDoc . markdown markdownOptions $ eventDesc event
-        , ""
+        , "\n"
         , fromStrict $ "Location: " <> eventLocation event
-        , ""
+        , "\n"
         , fromStrict $ "Date/Time: " <> formatDateTime (eventDateTime event)
-        , ""
+        , "\n"
         , fromStrict $ "Duration: " <> formatDiffTime (eventDuration event)
-        , ""
+        , "\n"
+        , renderText . renderDoc . markdown markdownOptions $ eventDesc event
+        , "\n"
         , renderText . renderDoc . markdown markdownOptions $
           "To read more about the event, [click here](" <> getDomain state
             <> "/event/"
@@ -111,13 +121,8 @@ notifyNewEvent state@(AppState config _ _) conn event isEdit user = do
       ]
   run (runWriteTransaction $ removeNewEvent event) conn
 
-getDomain :: AppState -> Text
-getDomain (AppState config cmd _) =
-  getProtocol cmd
-   <> "://"
-   <> cfgDomain config
-   <> ":" <> (pack . show $ getPort cmd)
 
+-- | Send a verification message to a newly registered user
 notifyVerification :: AppState -> User -> IO ()
 notifyVerification state@(AppState config _ _) user = do
   renderSendMail $
@@ -142,7 +147,7 @@ notifyVerification state@(AppState config _ _) user = do
         ]
       ]
 
-
+-- | Send a link to a reset password form
 notifyResetPassword :: AppState -> User -> Text -> IO ()
 notifyResetPassword state@(AppState config _ _) user hash = do
   renderSendMail $
@@ -165,7 +170,7 @@ notifyResetPassword state@(AppState config _ _) user hash = do
         ]
       ]
 
-
+-- | A template for emails
 emailTemplate config user subject content =
   simpleMail
     (Address (Just $ cfgTitle config) "noreply")
@@ -174,3 +179,11 @@ emailTemplate config user subject content =
     []
     subject
     $ content
+
+-- | Render the protocol, domain and port of the website
+getDomain :: AppState -> Text
+getDomain (AppState config cmd _) =
+  getProtocol cmd
+   <> "://"
+   <> cfgDomain config
+   <> ":" <> (pack . show $ getPort cmd)

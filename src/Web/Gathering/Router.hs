@@ -1,6 +1,6 @@
-{- | The router of the application.
+{- | The router of the application
 
-It will direct which action should run according to the route and app state.
+The router directs http requests to the relevant handler/action to be taken
 
 -}
 
@@ -16,7 +16,6 @@ import Web.Gathering.Actions.Events
 import Web.Gathering.Actions.Attending
 import Web.Gathering.Database
 
-import Data.HVect
 import Data.Int (Int32)
 import Data.Text (Text)
 import Data.Maybe (maybeToList)
@@ -30,11 +29,16 @@ import Web.Spock
 -------------
 
 -- | This is the router of the app
---   It will direct which action should run
---   according to the route and app state
+--
+-- It uses hooks to to separate handlers between
+-- different authentication and unauthenticated users
+--
+-- The hooks are defined in Web.Gathering.Actions.Auth
 --
 appRouter :: App ()
 appRouter = prehook baseHook $ do
+
+  -- serve static content like css and js that can be found in the static folder
 
   middleware (staticPolicy (addBase "static"))
 
@@ -52,7 +56,7 @@ appRouter = prehook baseHook $ do
   get ("event" <//> var) $ \(eid :: EventId) ->
     maybeUser $ displayEvents (maybeToList <$> getEventById eid)
 
-  -- authentication
+  -- authenticate guests
 
   prehook guestOnlyHook $ do
 
@@ -109,13 +113,3 @@ appRouter = prehook baseHook $ do
       getpost ("event" <//> var <//> "delete") $ \(eid :: EventId) ->
         deleteEventAction eid
 
------------
--- Hooks --
------------
-
--- Hooks are the context of the app and provides us
--- a type safe way to check we don't call functions we are not supposed to
--- call. For example, Only guests should be able to sign-in or sign-up
-
-baseHook :: Action () (HVect '[])
-baseHook = return HNil

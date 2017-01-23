@@ -1,4 +1,4 @@
-{- | Displaying events, creating new events and editing existing events
+{- | Will handle user attendance
 
 -}
 
@@ -18,10 +18,7 @@ import Data.Monoid
 
 import Web.Spock
 
--- | Describe the action to do when a user wants to create a new event
---
---   Will present the event/new form and will take care of the validation,
---   will query the database for validation and will insert the new event
+-- | Handle the user action to attend or unattend an event
 --
 attendingAction :: (ListContains n User xs) => EventId -> Maybe Bool -> Action (HVect xs) ()
 attendingAction eid mIsAttending = do

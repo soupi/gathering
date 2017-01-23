@@ -36,15 +36,21 @@ import Data.Int (Int32)
 import Data.List (find)
 import Data.Maybe (mapMaybe)
 
+-- | Run a transaction that only reads data from the database
+--   in the context of a spock action
 readQuery :: Sql.Transaction a -> Action v (Either Sql.Error a)
 readQuery = S.runQuery . Sql.run . runReadTransaction
 
+-- | Run a transaction that can read and write data from/to the database
+--   in the context of a spock action
 writeQuery :: Sql.Transaction a -> Action v (Either Sql.Error a)
 writeQuery = S.runQuery . Sql.run . runWriteTransaction
 
+-- | Run a transaction that only reads data from the database
 runReadTransaction :: Sql.Transaction a -> Sql.Session a
 runReadTransaction = Sql.transaction Sql.Serializable Sql.Read
 
+-- | Run a transaction that can read and write data from/to the database
 runWriteTransaction :: Sql.Transaction a -> Sql.Session a
 runWriteTransaction = Sql.transaction Sql.Serializable Sql.Write
 
@@ -641,6 +647,8 @@ toAttendant events users (eid, uid, att, fol) =
 -- Connection pool --
 ---------------------
 
+-- | A connection pool for hasql
+--   The numbers are fairly random. Sorry about that.
 hasqlPool :: Sql.Settings -> SC.ConnBuilder Sql.Connection
 hasqlPool connstr = SC.ConnBuilder
   { cb_createConn = either (error . show . fmap BSC.unpack) id <$> Sql.acquire connstr

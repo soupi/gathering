@@ -51,6 +51,10 @@ data IsAdmin = IsAdmin
   deriving (Show, Eq, Ord)
 
 
+-- | The base hook
+baseHook :: Action () (HVect '[])
+baseHook = return HNil
+
 -- | Verifies that the user is a guest to the site.
 --   If they aren't it will redirect to root
 guestOnlyHook :: Action (HVect xs) (HVect (IsGuest ': xs))
@@ -138,9 +142,11 @@ signInAction = do
 
 -- | Describe the action to do when a user wants to sign up for the system:
 --
---   Will present the sign-up form and will take care of the validation,
---   will query the database for validation, will insert the new session
---   and will write it in the session state on success
+--   Will present the sign-up form, will take care of the validation and
+--   will query the database for validation.
+--
+--   to the user's email and will write the user details to the new_users table
+--   On a successful sign-up it will send the verification link
 --
 signUpAction :: (ListContains n IsGuest xs, NotInList User xs ~ 'True) => Action (HVect xs) ()
 signUpAction = do
@@ -213,6 +219,8 @@ signUpAction = do
                   -- @TODO internal err
                   text $ "Failed to send email. Please verify your mail is valid and try again later.\n\n" <> e
 
+
+-- | Sign out a signed-in user
 signOutAction :: (ListContains n User xs) => Action (HVect xs) ()
 signOutAction = do
   sess <- readSession
@@ -224,6 +232,7 @@ signOutAction = do
       void . writeQuery $ killSession uid -- maybe log this?
       redirect "/"
 
+-- | Verify a new user and set user session on success
 verificationAction :: (ListContains n IsGuest xs, NotInList User xs ~ 'True) => Int32 -> T.Text -> Action (HVect xs) ()
 verificationAction key email = do
   result <- writeQuery $ verifyNewUser key email
@@ -241,7 +250,8 @@ verificationAction key email = do
       makeSession (userId user) $
         redirect "/"
 
-
+-- | Give the user the ability to change their settings
+-- (only for receiving notifications for now)
 settingsAction :: (ListContains n User xs) => Action (HVect xs) ()
 settingsAction = do
   user <- fmap findFirst getContext
@@ -270,6 +280,7 @@ settingsAction = do
           redirect "/"
 
 -- | Handle a reset password request action
+-- | Will send the user's email a link to a reset password form
 requestResetAction :: (ListContains n IsGuest xs, NotInList User xs ~ 'True) => Action (HVect xs) ()
 requestResetAction = do
   ac <- appConfig <$> getState
@@ -311,6 +322,7 @@ requestResetAction = do
                <> "\n\nPlease give it a few minutes and check your spam folder as well."
 
 
+-- | Will let the user fill a new password
 resetPasswordAction :: (ListContains n IsGuest xs, NotInList User xs ~ 'True) => T.Text -> T.Text -> Action (HVect xs) ()
 resetPasswordAction hash email = do
   ac <- appConfig <$> getState
@@ -352,8 +364,8 @@ resetPasswordAction hash email = do
 -- Utils --
 -----------
 
--- | Insert the user session to the database and write in to the app state
---   So the user can continue using the website while being logged in
+-- | Insert the user session to the database and write it in the app state
+--   So the user can continue using the website while being signed-in
 makeSession :: (ListContains n IsGuest xs, NotInList User xs ~ 'True)
             => UserId -> Action (HVect xs) () -> Action (HVect xs) ()
 makeSession uid act = do

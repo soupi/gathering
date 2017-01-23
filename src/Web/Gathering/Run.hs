@@ -1,7 +1,17 @@
 {- | The entry point to the application.
 
 It will configure the app by parsing the command line arguments
-and will execute the app according to command
+and will execute the app according to a command which can be:
+
+- http
+- https
+- both
+- add-admin
+- rem-admin
+- del-user
+
+more information about those in the Web.Gathering.Config file which
+is responsible about parsing arguments and configuration
 
 -}
 
@@ -38,15 +48,13 @@ import Web.Spock.Config
 
 -- | This is the entry point of the application
 --
---   It will parse the arguments to get the configuration and will
---   Initialize the application. Then it will run the app according
---   To the command mode: http, https or both.
---
 run :: IO ()
 run = do
+  -- get configuration
   (conf, cmd) <- parseArgs
   let connstr = cfgDbConnStr conf
 
+  -- Run a command or get the serve mode
   mode <- case cmd of
     Serve m ->
       pure m
@@ -55,16 +63,17 @@ run = do
       runCmd connstr c
       exitSuccess
 
-  -- logger
+  -- run logger
   (AppState conf mode -> state) <- runDefaultLogger
 
+  -- Log configuration
   L.put (appLogger state) (pack $ show (conf, cmd))
 
-  -- Background workers
+  -- Run background workers
   void $ forkIO $ newEventsWorker state
   void $ forkIO $ cleanerWorker state
 
-  -- app
+  -- Run the spock app
   spockCfg <- (\cfg -> cfg { spc_csrfProtection = True })
           <$> defaultSpockCfg EmptySession (PCConn $ hasqlPool connstr) state
 
@@ -91,8 +100,7 @@ runHttps spockCfg tls = do
     spockApp
 
 
--- | Commands
-
+-- | Run other commands
 runCmd :: ByteString -> Cmd -> IO ()
 runCmd connStr cmd = do
   mConn <- acquire connStr
@@ -114,6 +122,7 @@ runCmd connStr cmd = do
     Left ex -> do
       die ("Command Error: " ++ show ex)
 
+-- | Report a commands result
 report :: Show e => Either e (Either Text ()) -> IO ()
 report = \case
   Right (Right ()) ->

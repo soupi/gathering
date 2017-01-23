@@ -4,9 +4,13 @@ We'll use the functions defined in this module to parse
 command line arguments and config files to provide the configuration
 for this program, the configuration contains:
 
-- Command: how to run the app: http, https or both
+- Command: how to run the app:
+    - Serving the app with http, https or both
+    - Run a specific command: add-admin, rem-admin or del-user
+
 - AppConfig: configuration for the app which contains
     - Title
+    - Domain
     - Description
     - DB connection string
 
@@ -119,6 +123,7 @@ data Command
   | Cmd Cmd
   deriving (Show, Read, Eq, Ord)
 
+-- | A command to run instead of serving the app
 data Cmd
   = AddAdmin T.Text
   | RemAdmin T.Text
@@ -126,7 +131,7 @@ data Cmd
   deriving (Show, Read, Eq, Ord)
 
 
--- | Which mode to run spock
+-- | Which mode to serve spock
 data Mode
   = HTTP Int
   | HTTPS TLSConfig
@@ -169,6 +174,7 @@ defaultConfig = AppConfig
 -- Options Parser --
 --------------------
 
+-- | Command line arguments data type for the parser
 data Params = Params
   { pFileCfg :: Maybe FilePath
   , pCfg :: Maybe AppConfig
