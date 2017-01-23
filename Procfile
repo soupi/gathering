@@ -1,1 +1,1 @@
-web: /app/.local/bin/gather --port=$PORT
+web: /app/.local/bin/gather http --port=$PORT
