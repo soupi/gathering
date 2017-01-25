@@ -95,7 +95,7 @@ runHttps :: SpockCfg Connection MySession AppState -> TLSConfig -> IO ()
 runHttps spockCfg tls = do
   spockApp <- spockAsApp (spock spockCfg appRouter)
   runTLS
-    (tlsSettings (tlsKey tls) (tlsCert tls))
+    (tlsSettings (tlsCert tls) (tlsKey tls))
     (setPort (tlsPort tls) defaultSettings)
     spockApp
 
