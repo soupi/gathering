@@ -26,9 +26,11 @@ import Hasql.Connection
 import Control.Monad
 import Data.Maybe (fromMaybe)
 import Data.Monoid
+import Data.Time (getCurrentTime, diffUTCTime)
 import Data.Text (pack, Text)
 import Data.Text.Encoding (decodeUtf8)
 import Data.Text.Lazy (unlines, fromStrict)
+import qualified Data.Text.Lazy as TL
 import qualified Data.Set as S
 import Lucid (renderText)
 import Cheapskate
@@ -46,21 +48,30 @@ import Web.Gathering.Workers.Logger
 -- | Will run forever and will send emails on new events or event changes every 20 minutes
 newEventsWorker :: AppState -> IO ()
 newEventsWorker config = forever $ do
-  put (appLogger config) "Events worker starting..."
-  newEventsWorker' config
-  put (appLogger config) "Events Worker sleeping..."
+  put (appLogger config) "New Events worker starting..."
+  eventsWorker' config sendNewEvents
+  put (appLogger config) "New Events Worker sleeping..."
   sleep (60 * 20) -- sleep for 20 minutes
 
--- | Will send emails on new events or event
-newEventsWorker' :: AppState -> IO ()
-newEventsWorker' config = do
+-- | Will run forever and will send emails for event reminders every 4 hours
+eventRemindersWorker :: AppState -> IO ()
+eventRemindersWorker config = forever $ do
+  put (appLogger config) "Event Reminders worker starting..."
+  eventsWorker' config sendEventReminders
+  put (appLogger config) "Event Reminders Worker sleeping..."
+  sleep (60 * 60 * 4) -- sleep for 4 hours
+
+
+-- | Will run action and handle db connection and errors
+eventsWorker' :: AppState -> (AppState -> Connection -> IO ()) -> IO ()
+eventsWorker' config action = do
   mConn <- acquire (cfgDbConnStr $ appConfig config)
   case mConn of
     Right conn -> do
-      sendNewEvents config conn `catch` \ex -> err (appLogger config) ("New Events Worker: " <> (pack $ show (ex :: SomeException)))
+      action config conn `catch` \ex -> err (appLogger config) ("Events Worker: " <> (pack $ show (ex :: SomeException)))
       release conn
     Left (fromMaybe "Unknown error" -> ex) ->
-      err (appLogger config) ("New Events Worker: " <> decodeUtf8 ex)
+      err (appLogger config) ("Events Worker: " <> decodeUtf8 ex)
 
 -- | Search the events that messages should be sent for them and send the messages
 sendNewEvents :: AppState -> Connection -> IO ()
@@ -87,6 +98,25 @@ sendNewEvents config conn = do
               S.union (S.fromList users) (getAttsWantsUpdates id) S.\\ (getAttsWantsUpdates not)
           in
             mapM (notifyNewEvent config conn event True) (S.toList notifiedUsers)
+
+
+sendEventReminders :: AppState -> Connection -> IO ()
+sendEventReminders config conn = do
+  mNearEvents <- flip run conn $
+      runReadTransaction getNearEvents
+
+  case mNearEvents of
+    Left er -> err (appLogger config) ("Near Events Worker: " <> pack (show er))
+
+    Right events ->
+      forM_ events $ \case
+        (event, atts) ->
+          let
+            attsWantsUpdates =
+              map attendantUser $ filter attendantFollowsChanges atts
+          in
+            mapM (notifyEventReminder config event) attsWantsUpdates
+
 
 -- | Send new event or event edited message
 notifyNewEvent :: AppState -> Connection -> Event -> Bool -> User -> IO (Either Error ())
@@ -120,6 +150,40 @@ notifyNewEvent state@(AppState config _ _) conn event isEdit user = do
         ]
       ]
   run (runWriteTransaction $ removeNewEvent event) conn
+
+-- | Send an event reminder message
+notifyEventReminder :: AppState -> Event -> User -> IO ()
+notifyEventReminder state@(AppState config _ _) event user = do
+  diffHours <- fmap ((`div` (60 * 60)) . floor . (eventDateTime event `diffUTCTime`)) getCurrentTime
+  renderSendMail $
+    emailTemplate
+      config
+      user
+      ("Reminder that the event @ " <> cfgTitle config <> ": '" <> eventName event <> "' is taking place in " <> pack (show diffHours) <> bool " hours." " hour." (diffHours == 1))
+      [ htmlPart $ unlines
+        [ "This is a reminder of the following event which is taking place in " <> TL.pack (show diffHours) <> bool " hours:" " hour:" (diffHours == 1)
+        , "\n"
+        , fromStrict $ eventName event
+        , "\n"
+        , fromStrict $ "Location: " <> eventLocation event
+        , "\n"
+        , fromStrict $ "Date/Time: " <> formatDateTime (eventDateTime event)
+        , "\n"
+        , fromStrict $ "Duration: " <> formatDiffTime (eventDuration event)
+        , "\n"
+        , renderText . renderDoc . markdown markdownOptions $ eventDesc event
+        , "\n"
+        , renderText . renderDoc . markdown markdownOptions $
+          "To read more about the event, [click here](" <> getDomain state
+            <> "/event/"
+            <> pack (show $ eventId event)
+            <> ")."
+        , ""
+        , renderText . renderDoc . markdown markdownOptions $
+          "To find about more events from " <> cfgTitle config <> ", [click here](" <> getDomain state <> ")!"
+        ]
+      ]
+
 
 
 -- | Send a verification message to a newly registered user

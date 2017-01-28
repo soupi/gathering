@@ -71,6 +71,7 @@ run = do
 
   -- Run background workers
   void $ forkIO $ newEventsWorker state
+  void $ forkIO $ eventRemindersWorker state
   void $ forkIO $ cleanerWorker state
 
   -- Run the spock app

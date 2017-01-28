@@ -158,6 +158,20 @@ getNewEvents = do
   pure results
 
 
+getNearEvents :: Sql.Transaction [(Event, [Attendant])]
+getNearEvents = do
+  events <- Sql.query () $
+    Sql.statement
+      "select * from events where event_datetime between (now() + '19 hours') and (now() + '24 hours') or event_datetime between (now()) and (now() + '5 hours')"
+      mempty
+      (SqlD.rowsList decodeEvent)
+      False
+
+  results <- mapM (\e -> (e,) <$> getAttendantsForEvent e) events
+
+  pure results
+
+
 -- | Get all attendants
 getAttendants :: Sql.Transaction Attendants
 getAttendants = do
