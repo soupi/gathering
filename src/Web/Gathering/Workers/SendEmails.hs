@@ -41,6 +41,7 @@ import Web.Gathering.Model
 import Web.Gathering.Utils
 import Web.Gathering.Config
 import Web.Gathering.Types
+import Web.Gathering.HashPassword
 import Web.Gathering.Database
 import Web.Gathering.Workers.Logger
 
@@ -126,17 +127,17 @@ notifyNewEvent state@(AppState config _ _) conn event isEdit user = do
       config
       user
       (bool "New event @" "Event updated @" isEdit <> cfgTitle config <> ": '" <> eventName event <> "'")
-      [ htmlPart $ unlines
+      [ htmlPart . unlines $
         [ bool "A new event has been announced:" "This event has been updated:" isEdit
         , "\n"
-        , fromStrict $ eventName event
+        , fromStrict $ "<h2>" <> eventName event <> "</h2>"
         , "\n"
-        , fromStrict $ "Location: " <> eventLocation event
-        , "\n"
-        , fromStrict $ "Date/Time: " <> formatDateTime (eventDateTime event)
-        , "\n"
-        , fromStrict $ "Duration: " <> formatDiffTime (eventDuration event)
-        , "\n"
+        , fromStrict $ "<p><b>Location</b>: " <> eventLocation event
+        , "</p>\n"
+        , fromStrict $ "<p><b>Datetime</b>: " <> formatDateTime (eventDateTime event)
+        , "</p>\n"
+        , fromStrict $ "<p><b>Duration</b>: " <> formatDiffTime (eventDuration event)
+        , "</p>\n"
         , renderText . renderDoc . markdown markdownOptions $ eventDesc event
         , "\n"
         , renderText . renderDoc . markdown markdownOptions $
@@ -148,6 +149,7 @@ notifyNewEvent state@(AppState config _ _) conn event isEdit user = do
         , renderText . renderDoc . markdown markdownOptions $
           "To find about more events from " <> cfgTitle config <> ", [click here](" <> getDomain state <> ")!"
         ]
+        <> unsubscribe state user
       ]
   run (runWriteTransaction $ removeNewEvent event) conn
 
@@ -160,16 +162,18 @@ notifyEventReminder state@(AppState config _ _) event user = do
       config
       user
       ("Reminder that the event @ " <> cfgTitle config <> ": '" <> eventName event <> "' is taking place in " <> pack (show diffHours) <> bool " hours." " hour." (diffHours == 1))
-      [ htmlPart $ unlines
-        [ "This is a reminder of the following event which is taking place in " <> TL.pack (show diffHours) <> bool " hours:" " hour:" (diffHours == 1)
+      [ htmlPart . unlines $
+        [ "<p>"
+        , "This is a reminder of the following event which is taking place in " <> TL.pack (show diffHours) <> bool " hours:" " hour:" (diffHours == 1)
+        , "</p>\n"
+        , fromStrict $ "<h2>" <> eventName event <> "</h2>"
         , "\n"
-        , fromStrict $ eventName event
-        , "\n"
-        , fromStrict $ "Location: " <> eventLocation event
-        , "\n"
-        , fromStrict $ "Date/Time: " <> formatDateTime (eventDateTime event)
-        , "\n"
-        , fromStrict $ "Duration: " <> formatDiffTime (eventDuration event)
+        , fromStrict $ "<p><b>Location</b>: " <> eventLocation event
+        , "</p>\n"
+        , fromStrict $ "<p><b>Datetime</b>: " <> formatDateTime (eventDateTime event)
+        , "</p>\n"
+        , fromStrict $ "<p><b>Duration</b>: " <> formatDiffTime (eventDuration event)
+        , "</p>\n"
         , "\n"
         , renderText . renderDoc . markdown markdownOptions $ eventDesc event
         , "\n"
@@ -182,6 +186,7 @@ notifyEventReminder state@(AppState config _ _) event user = do
         , renderText . renderDoc . markdown markdownOptions $
           "To find about more events from " <> cfgTitle config <> ", [click here](" <> getDomain state <> ")!"
         ]
+        <> unsubscribe state user
       ]
 
 
@@ -219,7 +224,7 @@ notifyResetPassword state@(AppState config _ _) user hash = do
       config
       user
       ("Reset your password for " <> cfgTitle config)
-      [ htmlPart $ unlines
+      [ htmlPart . unlines $
         [ renderText . renderDoc . markdown markdownOptions $
           "You have requested a password reset link:\n\n"
         <>"[Click here to reset your password]("
@@ -231,8 +236,23 @@ notifyResetPassword state@(AppState config _ _) user hash = do
             <> ")"
         , ""
         , "Note that this link will expire in one day."
+        , "\n"
         ]
       ]
+
+unsubscribe :: AppState -> User -> [TL.Text]
+unsubscribe state@(AppState config _ _) user =
+  [ "\n"
+  , "---"
+  , "\n"
+  , renderText . renderDoc $ markdown markdownOptions
+      ("If you do not want to receive emails from "
+       <> cfgTitle config
+       <> ", [Unsubscribe here]("
+       <> getDomain state <> "/unsubscribe/" <> userEmail user <> "/" <> hashMD5 (userId user) (userEmail user)
+       <> ")."
+      )
+  ]
 
 -- | A template for emails
 emailTemplate config user subject content =

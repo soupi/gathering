@@ -56,6 +56,9 @@ appRouter = prehook baseHook $ do
   get ("event" <//> var) $ \(eid :: EventId) ->
     maybeUser $ displayEvents (maybeToList <$> getEventById eid)
 
+  get ("unsubscribe" <//> var <//> var) $ \(email :: Text) (key :: Text) ->
+    unsubscribeAction email key
+
   -- authenticate guests
 
   prehook guestOnlyHook $ do

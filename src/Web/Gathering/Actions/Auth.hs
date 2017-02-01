@@ -250,6 +250,30 @@ verificationAction key email = do
       makeSession (userId user) $
         redirect "/"
 
+-- | Unsubscribe a user on request
+unsubscribeAction :: T.Text -> T.Text -> Action (HVect xs) ()
+unsubscribeAction email key = do
+
+  mUser <- readQuery $ getUserLogin "" email
+  case mUser of
+    -- @TODO internal err
+    Left (T.pack . show -> e) -> do
+      err e
+      text e
+
+    Right Nothing ->
+      text "Unknown email."
+
+    Right (Just (user,_)) -> do
+      if hashMD5 (userId user) (userEmail user) == key
+        then do
+          void . writeQuery $ updateUser (user { userWantsUpdates = False })
+          text "You will not receive further mails until you change your settings."
+        else do
+          text "Email and key does not match. Please log in and change your settings to unsubscribe."
+
+
+
 -- | Give the user the ability to change their settings
 -- (only for receiving notifications for now)
 settingsAction :: (ListContains n User xs) => Action (HVect xs) ()

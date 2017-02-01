@@ -91,6 +91,7 @@ library
                      , mtl
                      , contravariant
                      , stm
+                     , pureMD5
 
   default-extensions:  OverloadedStrings
                      , LambdaCase
