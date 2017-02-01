@@ -4,7 +4,8 @@ create table users (
     user_email text unique not null,
     user_isadmin bool not null,
     user_wants_updates bool not null,
-    user_password_hash bytea not null
+    user_password_hash bytea not null,
+    user_hash text not null
 );
 create table new_users (
     verification_rand int not null,

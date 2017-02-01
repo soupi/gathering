@@ -36,6 +36,7 @@ import Data.Int (Int32)
 import Data.List (find)
 import Data.Maybe (mapMaybe)
 
+
 -- | Run a transaction that only reads data from the database
 --   in the context of a spock action
 readQuery :: Sql.Transaction a -> Action v (Either Sql.Error a)
@@ -64,7 +65,7 @@ getNewUser :: T.Text -> T.Text -> Sql.Transaction (Maybe User)
 getNewUser name email =
   Sql.query (name, email) $
     Sql.statement
-      "select verification_rand, user_name, user_email, user_isadmin, user_wants_updates from new_users where (user_name = $1 or user_email = $2) and valid_until > now()"
+      "select verification_rand, user_name, user_email, user_isadmin, user_wants_updates, '' from new_users where (user_name = $1 or user_email = $2) and valid_until > now()"
       (contramap fst (SqlE.value SqlE.text) <> contramap snd (SqlE.value SqlE.text))
       (SqlD.maybeRow decodeUser)
       True
@@ -73,7 +74,7 @@ getNewUser name email =
 getUserById :: UserId -> Sql.Transaction (Maybe User)
 getUserById uid = Sql.query uid $
   Sql.statement
-    "select user_id, user_name, user_email, user_isadmin, user_wants_updates from users where user_id = $1"
+    "select user_id, user_name, user_email, user_isadmin, user_wants_updates, user_hash from users where user_id = $1"
     (SqlE.value SqlE.int4)
     (SqlD.maybeRow decodeUser)
     True
@@ -82,7 +83,7 @@ getUserById uid = Sql.query uid $
 getUserLogin :: T.Text -> T.Text -> Sql.Transaction (Maybe (User, BS.ByteString))
 getUserLogin name email = Sql.query (name, email) $
   Sql.statement
-    "select user_id, user_name, user_email, user_isadmin, user_wants_updates, user_password_hash from users where user_name = $1 OR user_email = $2"
+    "select user_id, user_name, user_email, user_isadmin, user_wants_updates, user_hash, user_password_hash from users where user_name = $1 OR user_email = $2"
     (  fst `contramap` SqlE.value SqlE.text
     <> snd `contramap` SqlE.value SqlE.text
     )
@@ -93,17 +94,27 @@ getUserLogin name email = Sql.query (name, email) $
 getUserBySession :: UserId -> Sql.Transaction (Maybe User)
 getUserBySession uid = Sql.query uid $
   Sql.statement
-    "select users.user_id, users.user_name, users.user_email, users.user_isadmin, users.user_wants_updates from users join sessions on users.user_id = sessions.user_id and sessions.valid_until > now() and users.user_id = $1"
+    "select users.user_id, users.user_name, users.user_email, users.user_isadmin, users.user_wants_updates, user_hash from users join sessions on users.user_id = sessions.user_id and sessions.valid_until > now() and users.user_id = $1"
     (SqlE.value SqlE.int4)
     (SqlD.maybeRow decodeUser)
     True
 
+-- | Find a user by email and hash
+getUserEmailHash :: T.Text -> T.Text -> Sql.Transaction (Maybe User)
+getUserEmailHash email hash = Sql.query (email, hash) $
+  Sql.statement
+    "select user_id, user_name, user_email, user_isadmin, user_wants_updates, user_hash, user_password_hash from users where user_name = $1 OR user_email = $2"
+    (  fst `contramap` SqlE.value SqlE.text
+    <> snd `contramap` SqlE.value SqlE.text
+    )
+    (SqlD.maybeRow decodeUser)
+    True
 
 -- | Get users from the users table
 getUsers :: Sql.Transaction [User]
 getUsers = Sql.query () $
   Sql.statement
-    "select user_id, user_name, user_email, user_isadmin, user_wants_updates from users"
+    "select user_id, user_name, user_email, user_isadmin, user_wants_updates, user_hash from users"
     mempty
     (SqlD.rowsList decodeUser)
     False
@@ -193,7 +204,7 @@ getAttendantsForEvent :: Event -> Sql.Transaction [Attendant]
 getAttendantsForEvent event = do
   Sql.query event $
     Sql.statement
-      "select u.user_id, u.user_name, u.user_email, u.user_isadmin, u.user_wants_updates, a.attending, a.follow_changes from attendants a inner join users u on a.user_id = u.user_id where a.event_id = $1"
+      "select u.user_id, u.user_name, u.user_email, u.user_isadmin, u.user_wants_updates, u.user_hash, a.attending, a.follow_changes from attendants a inner join users u on a.user_id = u.user_id where a.event_id = $1"
       (eventId `contramap` SqlE.value SqlE.int4)
       (SqlD.rowsList decodeAttendantUser)
       True
@@ -215,6 +226,7 @@ newUser user pass = do
 
     Nothing -> do
       newUserExists <- getNewUser (userName user) (userEmail user)
+
       case newUserExists of
         Just _ ->
           pure $ Left "User is still pending verification."
@@ -242,7 +254,7 @@ verifyNewUser key email = do
     Nothing -> do
       insertResult <- Sql.query (key, email) $
         Sql.statement
-          "insert into users (user_name, user_email, user_isadmin, user_wants_updates, user_password_hash) select user_name, user_email, user_isadmin, user_wants_updates, user_password_hash from new_users where verification_rand = $1 and user_email = $2 and valid_until > now() returning user_id, user_name, user_email, user_isadmin, user_wants_updates"
+          "insert into users (user_name, user_email, user_isadmin, user_wants_updates, user_password_hash, user_hash) select user_name, user_email, user_isadmin, user_wants_updates, user_password_hash, md5(random()::text) from new_users where verification_rand = $1 and user_email = $2 and valid_until > now() returning user_id, user_name, user_email, user_isadmin, user_wants_updates, user_hash"
           (contramap fst (SqlE.value SqlE.int4) <> contramap snd (SqlE.value SqlE.text))
           (SqlD.maybeRow decodeUser)
           True
@@ -480,7 +492,7 @@ verifyResetPassword :: T.Text -> T.Text -> BS.ByteString -> Sql.Transaction (Eit
 verifyResetPassword hash email newpass = do
   mu <- Sql.query (email, hash) $
     Sql.statement
-      "select u.user_id, u.user_name, u.user_email, u.user_isadmin, u.user_wants_updates \
+      "select u.user_id, u.user_name, u.user_email, u.user_isadmin, u.user_wants_updates, u.user_hash, \
       \from lost_passwords l inner join users u on l.user_id = u.user_id \
       \where u.user_email = $1 and l.hash = $2 and l.valid_until > now()"
       (contramap fst (SqlE.value SqlE.text) <> contramap snd (SqlE.value SqlE.text))
@@ -494,7 +506,7 @@ verifyResetPassword hash email newpass = do
     Just u -> do
       r <- Sql.query (userId u, newpass) $
         Sql.statement
-          "update users set user_password_hash = $2 where user_id = $1 returning user_id, user_name, user_email, user_isadmin, user_wants_updates"
+          "update users set user_password_hash = $2 where user_id = $1 returning user_id, user_name, user_email, user_isadmin, user_wants_updates, user_hash"
           (contramap fst (SqlE.value SqlE.int4) <> contramap snd (SqlE.value SqlE.bytea))
           (SqlD.singleRow decodeUser)
           True
@@ -614,6 +626,7 @@ decodeUser = User
   <*> SqlD.value SqlD.text -- email
   <*> SqlD.value SqlD.bool -- is admin
   <*> SqlD.value SqlD.bool -- wants updates
+  <*> SqlD.value SqlD.text -- hash
 
 -- | Decode a UserSession data type as a row from the sessions table
 decodeUserSession :: SqlD.Row UserSession

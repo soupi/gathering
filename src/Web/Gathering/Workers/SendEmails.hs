@@ -249,7 +249,7 @@ unsubscribe state@(AppState config _ _) user =
       ("If you do not want to receive emails from "
        <> cfgTitle config
        <> ", [Unsubscribe here]("
-       <> getDomain state <> "/unsubscribe/" <> userEmail user <> "/" <> hashMD5 (userId user) (userEmail user)
+       <> getDomain state <> "/unsubscribe/" <> userEmail user <> "/" <> hashMD5 (userHash user) (userEmail user)
        <> ")."
       )
   ]

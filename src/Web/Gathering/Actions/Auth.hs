@@ -194,7 +194,7 @@ signUpAction = do
         Right Nothing -> do
           hashedPass <- liftIO $ makePassword pass
           mNewUser <-
-            writeQuery $ newUser (User 0 uname umail False notify) hashedPass
+            writeQuery $ newUser (User 0 uname umail False notify "") hashedPass
           -- @TODO this is an internal error that we should take care of internally
           case mNewUser of
             Left (T.pack . show -> e) -> do
@@ -265,7 +265,7 @@ unsubscribeAction email key = do
       text "Unknown email."
 
     Right (Just (user,_)) -> do
-      if hashMD5 (userId user) (userEmail user) == key
+      if hashMD5 (userHash user) (userEmail user) == key
         then do
           void . writeQuery $ updateUser (user { userWantsUpdates = False })
           text "You will not receive further mails until you change your settings."

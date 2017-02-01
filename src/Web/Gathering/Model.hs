@@ -29,6 +29,7 @@ data User = User
   , userEmail :: Text
   , userIsAdmin :: Bool
   , userWantsUpdates :: Bool
+  , userHash :: Text
   }
   deriving (Show, Read, Eq, Ord)
 
