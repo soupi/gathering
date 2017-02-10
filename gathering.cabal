@@ -1,12 +1,12 @@
 name:                gathering
-version:             0.1.0.0
+version:             0.1.0
 synopsis:            Self hosted website for announcing group events
 description:         Please see README.md
 homepage:            https://github.com/soupi/gathering#readme
 license:             Apache-2.0
 license-file:        LICENSE
 author:              Gil Mizrahi
-maintainer:          gilmi@protonmail.com
+maintainer:          gilmi@posteo.net
 copyright:           2017 Gil Mizrahi
 category:            Web
 build-type:          Simple
