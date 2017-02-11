@@ -126,7 +126,7 @@ notifyNewEvent state@(AppState config _ _) conn event isEdit user = do
     emailTemplate
       config
       user
-      (bool "New event @" "Event updated @" isEdit <> cfgTitle config <> ": '" <> eventName event <> "'")
+      (bool "New event @ " "Event updated @ " isEdit <> cfgTitle config <> ": '" <> eventName event <> "'")
       [ htmlPart . unlines $
         [ bool "A new event has been announced:" "This event has been updated:" isEdit
         , "\n"
@@ -138,14 +138,18 @@ notifyNewEvent state@(AppState config _ _) conn event isEdit user = do
         , "</p>\n"
         , fromStrict $ "<p><b>Duration</b>: " <> formatDiffTime (eventDuration event)
         , "</p>\n"
-        , renderText . renderDoc . markdown markdownOptions $ eventDesc event
-        , "\n"
         , renderText . renderDoc . markdown markdownOptions $
           "To read more about the event, [click here](" <> getDomain state
             <> "/event/"
             <> pack (show $ eventId event)
             <> ")."
         , ""
+        , "---"
+        , "\n"
+        , renderText . renderDoc . markdown markdownOptions $ eventDesc event
+        , "\n"
+        , "---"
+        , "\n"
         , renderText . renderDoc . markdown markdownOptions $
           "To find about more events from " <> cfgTitle config <> ", [click here](" <> getDomain state <> ")!"
         ]
@@ -156,15 +160,25 @@ notifyNewEvent state@(AppState config _ _) conn event isEdit user = do
 -- | Send an event reminder message
 notifyEventReminder :: AppState -> Event -> User -> IO ()
 notifyEventReminder state@(AppState config _ _) event user = do
-  diffHours <- fmap ((`div` (60 * 60)) . floor . (eventDateTime event `diffUTCTime`)) getCurrentTime
+  diffTime <- fmap ((`div` 60) . floor . (eventDateTime event `diffUTCTime`)) getCurrentTime
+  let
+    diffHours = diffTime `div` 60
+    diffMins  = diffTime `mod` 60
+    diffTimeStr
+      | diffHours == 1 = "1 hour and " <> show diffMins <> " minutes"
+      | otherwise  = show diffHours <> " hours and " <> show diffMins <> " minutes"
+
   renderSendMail $
     emailTemplate
       config
       user
-      ("Reminder that the event @ " <> cfgTitle config <> ": '" <> eventName event <> "' is taking place in " <> pack (show diffHours) <> bool " hours." " hour." (diffHours == 1))
+      ("Reminder: '" <> eventName event
+       <> "' @ " <> cfgTitle config
+       <> " is taking place in " <> pack diffTimeStr
+      )
       [ htmlPart . unlines $
         [ "<p>"
-        , "This is a reminder of the following event which is taking place in " <> TL.pack (show diffHours) <> bool " hours:" " hour:" (diffHours == 1)
+        , "This is a reminder that the following event is taking place in " <> TL.pack diffTimeStr
         , "</p>\n"
         , fromStrict $ "<h2>" <> eventName event <> "</h2>"
         , "\n"
@@ -174,15 +188,18 @@ notifyEventReminder state@(AppState config _ _) event user = do
         , "</p>\n"
         , fromStrict $ "<p><b>Duration</b>: " <> formatDiffTime (eventDuration event)
         , "</p>\n"
-        , "\n"
-        , renderText . renderDoc . markdown markdownOptions $ eventDesc event
-        , "\n"
         , renderText . renderDoc . markdown markdownOptions $
           "To read more about the event, [click here](" <> getDomain state
             <> "/event/"
             <> pack (show $ eventId event)
             <> ")."
-        , ""
+        , "\n"
+        , "---"
+        , "\n"
+        , renderText . renderDoc . markdown markdownOptions $ eventDesc event
+        , "\n"
+        , "---"
+        , "\n"
         , renderText . renderDoc . markdown markdownOptions $
           "To find about more events from " <> cfgTitle config <> ", [click here](" <> getDomain state <> ")!"
         ]
