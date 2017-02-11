@@ -39,11 +39,11 @@ template title ac nav body =
     body_ $ do
       div_ [class_ "container"] $ do
         H.div_ [ H.class_ "top row" ] $ do
-          header_ [ H.class_ "eight columns" ] $ do
+          header_ [ H.class_ "seven columns" ] $ do
             h1_ (H.a_ [ H.href_ "/" ] $ H.toHtml $ cfgTitle ac)
             h5_ [ H.class_ "top-desc" ] (H.toHtml $ cfgDesc ac)
 
-          nav_ [class_ "four columns"] nav
+          nav_ [class_ "five columns"] nav
 
         div_ [id_ "main"] body
 
@@ -75,14 +75,16 @@ navigation mUser = do
       H.p_ ("Signed-in as " <> H.span_ [ H.class_ "signed-in" ] (H.toHtml (userName user)))
       H.ul_ . sequence_ $
         [ H.li_ (H.a_ [ H.href_ "/event/new" ] "New Event") | userIsAdmin user ]
-        <> [ H.li_ (H.a_ [ H.href_ "/settings" ] "Settings")
+        <> [ H.li_ (H.a_ [ H.href_ "/events/past" ] "Past Events")
+           , H.li_ (H.a_ [ H.href_ "/settings" ] "Settings")
            , H.li_ (H.a_ [ H.href_ "/signout"  ] "Sign-out")
            ]
 
     Nothing -> do
       H.p_ (H.toHtmlRaw ("<br>" :: Text))
       H.ul_ . sequence_ $
-        [ H.li_ (H.a_ [ H.href_ "/signin" ] "Sign-in")
+        [ H.li_ (H.a_ [ H.href_ "/events/past" ] "Past Events")
+        , H.li_ (H.a_ [ H.href_ "/signin" ] "Sign-in")
         , H.li_ (H.a_ [ H.href_ "/signup" ] "Sign-up")
         ]
 
