@@ -132,7 +132,7 @@ getEvents = Sql.query () $
 getFutureEvents :: Sql.Transaction [Event]
 getFutureEvents = Sql.query () $
   Sql.statement
-    "select * from events where event_datetime >= now() order by event_datetime asc"
+    "select * from events where event_datetime + event_duration >= now() order by event_datetime asc"
     mempty
     (SqlD.rowsList decodeEvent)
     False
@@ -141,7 +141,7 @@ getFutureEvents = Sql.query () $
 getPastEvents :: Sql.Transaction [Event]
 getPastEvents = Sql.query () $
   Sql.statement
-    "select * from events where event_datetime < now() order by event_datetime desc"
+    "select * from events where event_datetime + event_duration < now() order by event_datetime desc"
     mempty
     (SqlD.rowsList decodeEvent)
     False
