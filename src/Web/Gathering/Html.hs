@@ -10,9 +10,10 @@ import Lucid.Html5
 import Cheapskate.Lucid
 import Cheapskate (markdown, Options(..))
 import Control.Monad
-import Data.Text (Text, pack)
+import Data.Text (Text, pack, unpack)
 import Data.Monoid
 import Data.List (find)
+import Network.URI (parseURI)
 
 import Web.Gathering.Utils
 import Web.Gathering.Model
@@ -120,13 +121,22 @@ event mUser e = H.div_ [ class_ "event nine columns" ] $ do
       H.th_ "Date"
       H.th_ "Duration"
     mapM_ H.td_
-      [ H.toHtml $ eventLocation e
+      [ renderLocation $ eventLocation e
       , H.span_ [ H.class_ "datetime" ] . H.toHtml $ formatDateTime (eventDateTime e)
       , H.toHtml $ formatDiffTime (eventDuration e)
       ]
 
   H.div_ $ do
     renderDoc $ markdown markdownOptions (eventDesc e)
+
+-- | Render event Location
+renderLocation :: Text -> Html
+renderLocation location = 
+  case parseURI (unpack location) of
+    Just _ -> H.a_ [href_ location] asHtml
+    Nothing -> asHtml
+  where
+    asHtml = H.toHtml location
 
 -- | Render attendant list
 attendants :: Text -> EventId -> Maybe User -> [Attendant] -> Html

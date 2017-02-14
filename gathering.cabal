@@ -69,6 +69,7 @@ library
                      , hasql-transaction
                      -- input validation
                      , html-email-validate
+                     , network-uri
                      -- handling configurations
                      , configurator
                      -- json
