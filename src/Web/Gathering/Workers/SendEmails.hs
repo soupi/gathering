@@ -35,6 +35,7 @@ import qualified Data.Set as S
 import Lucid (renderText)
 import Cheapskate
 import Cheapskate.Lucid
+import Network.Mail.Mime (Part, Mail)
 
 import Web.Gathering.Html (markdownOptions)
 import Web.Gathering.Model
@@ -272,6 +273,7 @@ unsubscribe state@(AppState config _ _) user =
   ]
 
 -- | A template for emails
+emailTemplate :: AppConfig -> User -> Text -> [Part] -> Mail
 emailTemplate config user subject content =
   simpleMail
     (Address (Just $ cfgTitle config) "noreply")
