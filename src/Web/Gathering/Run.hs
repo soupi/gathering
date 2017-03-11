@@ -36,7 +36,7 @@ import Data.Text (pack, unpack, Text)
 import Control.Monad (void)
 import Control.Concurrent (forkIO)
 import Network.Wai.Handler.Warp (setPort, defaultSettings)
-import Network.Wai.Handler.WarpTLS (runTLS, tlsSettings)
+import Network.Wai.Handler.WarpTLS (runTLS, tlsSettings, tlsSettingsChain)
 import Data.ByteString (ByteString)
 
 import Hasql.Connection (Connection, acquire, release)
@@ -96,10 +96,16 @@ runHttps :: SpockCfg Connection MySession AppState -> TLSConfig -> IO ()
 runHttps spockCfg tls = do
   spockApp <- spockAsApp (spock spockCfg appRouter)
   runTLS
-    (tlsSettings (tlsCert tls) (tlsKey tls))
+    settings
     (setPort (tlsPort tls) defaultSettings)
     spockApp
 
+  where
+    settings = case tlsChain tls of
+      Nothing ->
+         tlsSettings (tlsCert tls) (tlsKey tls)
+      Just ch ->
+         tlsSettingsChain (tlsCert tls) [ch] (tlsKey tls)
 
 -- | Run other commands
 runCmd :: ByteString -> Cmd -> IO ()

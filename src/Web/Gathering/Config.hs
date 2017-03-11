@@ -80,16 +80,17 @@ parseConfig cfgFile = do
   db <- C.require cfg "db"
 
   port <- C.lookup cfg "http.port"
-  tlsport <- C.lookup cfg "https.port"
-  tlscert <- C.lookup cfg "https.cert"
-  tlskey  <- C.lookup cfg "https.key"
+  tlsport  <- C.lookup cfg "https.port"
+  tlscert  <- C.lookup cfg "https.cert"
+  tlskey   <- C.lookup cfg "https.key"
+  tlschain <- C.lookup cfg "https.chain"
 
-  mode <- case (port, (,,) <$> tlsport <*> tlscert <*> tlskey) of
-    (Just port', Just (p,c,k)) ->
-      pure $ Both port' (TLSConfig p c k)
-    (Nothing, Just (p,c,k)) ->
-      pure $ HTTPS (TLSConfig p c k)
-    (Just port', _) ->
+  mode <- case (port, (,,) <$> tlsport <*> tlscert <*> tlskey, tlschain) of
+    (Just port', Just (p,c,k), ch) ->
+      pure $ Both port' (TLSConfig p c k ch)
+    (Nothing, Just (p,c,k), ch) ->
+      pure $ HTTPS (TLSConfig p c k ch)
+    (Just port', _, _) ->
       pure $ HTTP port'
     _ ->
       error "http or https configuration missing from configuration file."
@@ -143,6 +144,7 @@ data TLSConfig = TLSConfig
   { tlsPort :: Int
   , tlsCert :: FilePath
   , tlsKey  :: FilePath
+  , tlsChain  :: Maybe FilePath
   }
   deriving (Show, Read, Eq, Ord)
 
@@ -258,6 +260,7 @@ tlsConfig = TLSConfig
   <$> option auto (long "tls-port" <> short 'P' <> metavar "PORT" <> help "Port for TLS" <> showDefault <> value 443)
   <*> strOption (long "tls-key"  <> short 'k' <> metavar "KEY"  <> help "Key file for for TLS")
   <*> strOption (long "tls-cert" <> short 'c' <> metavar "CERT" <> help "Cert file for for TLS")
+  <*> optional (strOption (long "tls-chain" <> short 'c' <> metavar "CHAIN" <> help "Chain file for for TLS"))
 
 fromFile :: Parser FilePath
 fromFile =
