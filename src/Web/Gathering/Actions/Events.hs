@@ -49,8 +49,8 @@ displayEvents getEventsQuery mUser = do
 --   Will present the event/new form and will take care of the validation,
 --   will query the database for validation and will insert the new event
 --
-newEventAction :: (ListContains n User xs, ListContains m IsAdmin xs) => Action (HVect xs) ()
-newEventAction = do
+newEventAction :: (ListContains n User xs, ListContains m IsAdmin xs) => Maybe EventId -> Action (HVect xs) ()
+newEventAction meid = do
   ac <- appConfig <$> getState
   let
     -- | Display the form to the user
@@ -58,34 +58,52 @@ newEventAction = do
       form <- secureForm path (editEventFormView "Create") view
       formViewer ac "New Event" form mErr
 
-  -- Run the form
-  form <- runForm "" (editEventForm Nothing)
-  -- validate the form.
-  -- Nothing means failure. will display the form view back to the user when validation fails.
-  case form of
-    (view, Nothing) ->
-      formView Nothing view
-    -- If basic validation of fields succeeds, continue to check validation against db
+  mmEditedEvent <-
+    case meid of
+      Nothing -> pure (pure Nothing)
+      Just eid -> fmap pure <$> readQuery (getEventById eid)
 
-    (_, Just (EditEvent name desc loc mWhen mDur))
-      | Just when <- parseDateTime mWhen
-      , Just dur  <- parseDiffTime mDur
-      -> do
-        result <- writeQuery (newEvent $ Event 0 name desc loc when dur) -- newEvent doesn't care about event_id
-        case result of
-          -- @TODO this is an internal error that we should take care of internally
-          Left (T.pack . show -> e) -> do
-            err e
-            text e
+  case mmEditedEvent of
+    -- @TODO this is an internal error that we should take care of internally
+    Left (T.pack . show -> e) -> do
+      err e
+      text e
 
-          Right eid ->
-            redirect ("/event/" <> T.pack (show eid))
+    Right Nothing ->
+      text "Event does not exist"
 
-    (_, Just eEvent) ->
-      reportEventParsingError eEvent
+    Right (Just mEditedEvent) -> do
+
+      -- Run the form
+      form <- runForm "" (editEventForm (deleteDateTime . eventToEditEvent <$> mEditedEvent))
+      -- validate the form.
+      -- Nothing means failure. will display the form view back to the user when validation fails.
+      case form of
+        (view, Nothing) ->
+          formView Nothing view
+        -- If basic validation of fields succeeds, continue to check validation against db
+
+        (_, Just (EditEvent name desc loc mWhen mDur))
+          | Just when <- parseDateTime mWhen
+          , Just dur  <- parseDiffTime mDur
+          -> do
+            result <- writeQuery (newEvent $ Event 0 name desc loc when dur) -- newEvent doesn't care about event_id
+            case result of
+              -- @TODO this is an internal error that we should take care of internally
+              Left (T.pack . show -> e) -> do
+                err e
+                text e
+
+              Right eid ->
+                redirect ("/event/" <> T.pack (show eid))
+
+        (_, Just eEvent) ->
+          reportEventParsingError eEvent
 
   where
-    path = "/event/new"
+    path = case meid of
+      Nothing -> "/event/new"
+      Just eid -> "/event/" <> T.pack (show eid) <> "/clone"
 
 -- | Describe the action to do when a user wants to edit an existing event
 --

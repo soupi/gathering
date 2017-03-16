@@ -38,6 +38,9 @@ data EditEvent
   }
   deriving (Show)
 
+deleteDateTime :: EditEvent -> EditEvent
+deleteDateTime e = e { eEventDateTime = "" }
+
 -- | Definition of a form and it's validation
 editEventForm :: Monad m => Maybe EditEvent -> D.Form Html m EditEvent
 editEventForm mEvent = EditEvent

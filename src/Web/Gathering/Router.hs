@@ -108,7 +108,10 @@ appRouter = prehook baseHook $ do
     prehook adminHook $ do
 
       getpost ("event" <//> "new") $
-        newEventAction
+        newEventAction Nothing
+
+      getpost ("event" <//> var <//> "clone") $ \(eid :: EventId) ->
+        newEventAction (pure eid)
 
       getpost ("event" <//> var <//> "edit") $ \(eid :: EventId) ->
         editEventAction eid

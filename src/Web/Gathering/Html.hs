@@ -112,6 +112,8 @@ event mUser e = H.div_ [ class_ "event nine columns" ] $ do
       " ("
       H.a_ [href_ ("/event/" <> (pack . show $ eventId e) <> "/edit")] "edit"
       " | "
+      H.a_ [href_ ("/event/" <> (pack . show $ eventId e) <> "/clone")] "clone"
+      " | "
       H.a_ [href_ ("/event/" <> (pack . show $ eventId e) <> "/delete")] "delete"
       ")"
 
