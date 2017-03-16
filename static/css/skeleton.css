@@ -251,7 +251,7 @@ form textarea {
 }
 .digestive-functors-error {
     display: inline;
-    list-style: none;
+    color: red;
 }
 .digestive-functors-error ul {
     margin-left: 0;

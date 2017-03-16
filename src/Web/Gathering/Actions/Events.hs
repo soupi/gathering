@@ -60,7 +60,7 @@ newEventAction meid = do
 
   mmEditedEvent <-
     case meid of
-      Nothing -> pure (pure Nothing)
+      Nothing -> pure . pure $ pure Nothing
       Just eid -> fmap pure <$> readQuery (getEventById eid)
 
   case mmEditedEvent of
@@ -70,7 +70,7 @@ newEventAction meid = do
       text e
 
     Right Nothing ->
-      text "Event does not exist"
+      text $ "Event does not exist: " <> T.pack (show meid)
 
     Right (Just mEditedEvent) -> do
 
