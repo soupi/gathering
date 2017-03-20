@@ -55,9 +55,9 @@ run = do
   let connstr = cfgDbConnStr conf
 
   -- Run a command or get the serve mode
-  mode <- case cmd of
-    Serve m ->
-      pure m
+  (mode, sendMailsNow) <- case cmd of
+    Serve m sendMailsNow ->
+      pure (m, sendMailsNow)
 
     Cmd c -> do
       runCmd connstr c
@@ -70,8 +70,8 @@ run = do
   L.put (appLogger state) (pack $ show (conf, cmd))
 
   -- Run background workers
-  void $ forkIO $ newEventsWorker state
-  void $ forkIO $ eventRemindersWorker state
+  void $ forkIO $ newEventsWorker sendMailsNow state
+  void $ forkIO $ eventRemindersWorker sendMailsNow state
   void $ forkIO $ cleanerWorker state
 
   -- Run the spock app

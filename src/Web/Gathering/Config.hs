@@ -36,6 +36,7 @@ module Web.Gathering.Config
   )
 where
 
+import Data.Monoid ((<>))
 import Data.Maybe (fromMaybe)
 import Data.ByteString.Char8 (ByteString, pack)
 import Options.Applicative
@@ -67,7 +68,7 @@ parseArgs = do
       (cfg, _) <- fc
       pure (cfg, cmd')
 
-    (_, fromMaybe defaultConfig -> cfg, fromMaybe (Serve $ HTTP 8080) -> cmd') ->
+    (_, fromMaybe defaultConfig -> cfg, fromMaybe (Serve (HTTP 8080) False) -> cmd') ->
       pure (cfg, cmd')
 
 -- | Parse configuration file
@@ -78,6 +79,7 @@ parseConfig cfgFile = do
   desc <- C.require cfg "description"
   domain <- C.require cfg "domain"
   db <- C.require cfg "db"
+  sendmailsnow <- C.lookup cfg "send-mails-now"
 
   port <- C.lookup cfg "http.port"
   tlsport  <- C.lookup cfg "https.port"
@@ -95,7 +97,7 @@ parseConfig cfgFile = do
     _ ->
       error "http or https configuration missing from configuration file."
 
-  pure (AppConfig name desc domain db, Serve mode)
+  pure (AppConfig name desc domain db, Serve mode $ fromMaybe False sendmailsnow)
 
 
 ------------
@@ -120,9 +122,12 @@ data AppConfig = AppConfig
 
 -- | Choose whether to run a command or serve the app
 data Command
-  = Serve Mode
+  = Serve Mode SendMails
   | Cmd Cmd
   deriving (Show, Read, Eq, Ord)
+
+-- | Should I send emails when starting or later?
+type SendMails = Bool
 
 -- | A command to run instead of serving the app
 data Cmd
@@ -230,11 +235,11 @@ config = AppConfig
 cmd :: Parser Command
 cmd =
   subparser
-    ( command "http" (info (Serve . HTTP <$> httpConfig <**> helper)
+    ( command "http" (info (Serve <$> fmap HTTP httpConfig <*> sendMailsNow <**> helper)
         ( progDesc "Run only in HTTP mode" ))
-   <> command "https" (info (Serve . HTTPS <$> tlsConfig <**> helper)
+   <> command "https" (info (Serve <$> fmap HTTPS tlsConfig <*> sendMailsNow <**> helper)
         ( progDesc "Run only in TLS mode" ))
-   <> command "both" (info (Serve <$> (Both <$> httpConfig <*> tlsConfig <**> helper))
+   <> command "both" (info (Serve <$> (Both <$> httpConfig <*> tlsConfig) <*> sendMailsNow <**> helper)
         ( progDesc "Run both in HTTP and TLS modes" ))
    <> command "add-admin" (info (Cmd . AddAdmin <$> addAdminCmd <**> helper)
         ( progDesc "Promote a user to be an admin" ))
@@ -296,4 +301,11 @@ deleteUserCmd = T.pack <$>
    <> short 'u'
    <> metavar "USER"
    <> help "Delete a user entirely from the system. USER is either user name or email"
+  )
+
+sendMailsNow :: Parser Bool
+sendMailsNow =
+  switch
+  (long "send-mails-now"
+   <> help "Send mails when starting the server"
   )

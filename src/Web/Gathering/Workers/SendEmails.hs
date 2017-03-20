@@ -48,20 +48,24 @@ import Web.Gathering.Workers.Logger
 
 
 -- | Will run forever and will send emails on new events or event changes every 20 minutes
-newEventsWorker :: AppState -> IO ()
-newEventsWorker config = forever $ do
-  put (appLogger config) "New Events worker starting..."
-  eventsWorker' config sendNewEvents
-  put (appLogger config) "New Events Worker sleeping..."
-  sleep (60 * 20) -- sleep for 20 minutes
+newEventsWorker :: Bool -> AppState -> IO ()
+newEventsWorker sendMailsNow config = do
+  unless sendMailsNow $ sleep (60*20)
+  forever $ do
+    put (appLogger config) "New Events worker starting..."
+    eventsWorker' config sendNewEvents
+    put (appLogger config) "New Events Worker sleeping..."
+    sleep (60 * 20) -- sleep for 20 minutes
 
 -- | Will run forever and will send emails for event reminders every 4 hours
-eventRemindersWorker :: AppState -> IO ()
-eventRemindersWorker config = forever $ do
-  put (appLogger config) "Event Reminders worker starting..."
-  eventsWorker' config sendEventReminders
-  put (appLogger config) "Event Reminders Worker sleeping..."
-  sleep (60 * 60 * 4) -- sleep for 4 hours
+eventRemindersWorker :: Bool -> AppState -> IO ()
+eventRemindersWorker sendMailsNow config = do
+  unless sendMailsNow $ sleep (60*60)
+  forever $ do
+    put (appLogger config) "Event Reminders worker starting..."
+    eventsWorker' config sendEventReminders
+    put (appLogger config) "Event Reminders Worker sleeping..."
+    sleep (60 * 60 * 4) -- sleep for 4 hours
 
 
 -- | Will run action and handle db connection and errors
