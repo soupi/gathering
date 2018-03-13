@@ -2,7 +2,7 @@ Gathering is a self hosted website for announcing group events.
 
 This project is also an excuse for me to learn about web development. 
 
-> Status: alpha
+
 
 > License: Apache License 2.0
 
