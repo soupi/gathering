@@ -6,7 +6,7 @@ setup:
 .PHONY: initdb
 
 initdb:
-	psql -U postgres -f database_scripts/gather.ddl; psql -U gather -f database_scripts/database.ddl
+	psql -U postgres -h 127.0.0.1 postgres -f database_scripts/gather.ddl; psql -U gather -h 127.0.0.1 gather -f database_scripts/database.ddl
 
 .PHONY: build
 

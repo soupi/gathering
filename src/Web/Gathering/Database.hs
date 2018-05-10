@@ -492,7 +492,7 @@ verifyResetPassword :: T.Text -> T.Text -> BS.ByteString -> Sql.Transaction (Eit
 verifyResetPassword hash email newpass = do
   mu <- Sql.query (email, hash) $
     Sql.statement
-      "select u.user_id, u.user_name, u.user_email, u.user_isadmin, u.user_wants_updates, u.user_hash, \
+      "select u.user_id, u.user_name, u.user_email, u.user_isadmin, u.user_wants_updates, u.user_hash \
       \from lost_passwords l inner join users u on l.user_id = u.user_id \
       \where u.user_email = $1 and l.hash = $2 and l.valid_until > now()"
       (contramap fst (SqlE.value SqlE.text) <> contramap snd (SqlE.value SqlE.text))
