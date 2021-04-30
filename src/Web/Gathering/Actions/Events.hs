@@ -27,7 +27,7 @@ import Web.Spock.Lucid
 import Web.Spock.Digestive
 
 -- | Display events. allows the caller to specify which events to get from the database and in which order.
-displayEvents :: (Sql.Transaction [Event]) -> Maybe User -> Action (HVect xs) ()
+displayEvents :: Sql.Transaction [Event] -> Maybe User -> Action (HVect xs) ()
 displayEvents getEventsQuery mUser = do
   ac <- appConfig <$> getState
   csrfToken <- getCsrfToken

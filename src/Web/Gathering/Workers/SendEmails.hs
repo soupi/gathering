@@ -277,14 +277,12 @@ unsubscribe state@(AppState config _ _) user =
 
 -- | A template for emails
 emailTemplate :: AppConfig -> User -> Text -> [Part] -> Mail
-emailTemplate config user subject content =
+emailTemplate config user =
   simpleMail
     (Address (Just $ cfgTitle config) "noreply")
     [Address (Just $ userName user) (userEmail user)]
     []
     []
-    subject
-    $ content
 
 -- | Render the protocol, domain and port of the website
 getDomain :: AppState -> Text
