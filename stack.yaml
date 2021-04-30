@@ -1,16 +1,20 @@
-resolver: lts-8.5
+resolver: lts-17.10
 
 packages:
 - '.'
 
 extra-deps:
+- Spock-0.14.0.0
+- Spock-core-0.14.0.0
 - Spock-digestive-0.3.0.0
-- digestive-functors-0.8.1.1
-- digestive-functors-lucid-0.0.0.4
+- Spock-lucid-0.4.0.1
+- digestive-functors-0.8.4.2
+- digestive-functors-lucid-0.0.0.5
+- hasql-transaction-1.0.0.2
 - html-email-validate-0.2.0.0
-- hasql-transaction-0.5
+- reroute-0.6.0.0
+- pwstore-purehaskell-2.1.4
 
 flags: {}
 
 extra-package-dbs: []
-
