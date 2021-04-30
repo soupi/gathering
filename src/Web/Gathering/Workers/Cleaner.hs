@@ -40,7 +40,7 @@ cleaner state conn = do
   run (runWriteTransaction cleanOldNewUsers) conn >>= report state
   run (runWriteTransaction cleanOldLostPasswords) conn >>= report state
 
-report :: AppState -> Either Error t -> IO ()
+report :: AppState -> Either QueryError t -> IO ()
 report state = \case
   Right _ ->
     pure ()

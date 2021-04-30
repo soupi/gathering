@@ -124,7 +124,7 @@ sendEventReminders config conn = do
 
 
 -- | Send new event or event edited message
-notifyNewEvent :: AppState -> Connection -> Event -> Bool -> User -> IO (Either Error ())
+notifyNewEvent :: AppState -> Connection -> Event -> Bool -> User -> IO (Either QueryError ())
 notifyNewEvent state@(AppState config _ _) conn event isEdit user = do
   renderSendMail $
     emailTemplate
