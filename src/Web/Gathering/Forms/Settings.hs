@@ -23,7 +23,7 @@ import qualified Lucid as H
 --------------
 
 -- | Definition of a delete event data type
-data Settings
+newtype Settings
   = Settings
   { wantsUpdates :: Bool
   }

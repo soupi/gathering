@@ -9,6 +9,7 @@ import Web.Gathering.Types
 import Web.Gathering.Config
 import qualified Web.Gathering.Workers.Logger as L
 
+import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Web.Spock
 import Web.Spock.Lucid (lucid)
@@ -23,7 +24,7 @@ formViewer ac actionName form mErr = do
       ac
       (pure ())
       $ do
-        maybe (pure ()) id mErr
+        fromMaybe (pure ()) mErr
         form
 
 -- | Log a message

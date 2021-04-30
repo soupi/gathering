@@ -50,7 +50,7 @@ formatDiffTime = T.reverse . T.drop 3 . T.reverse . T.pack . show . timeToTimeOf
 parseDiffTime :: T.Text -> Maybe DiffTime
 parseDiffTime (trim -> T.unpack -> duration) =
   case duration of
-    h1:h2:':':m1:m2:[]
+    [h1,h2,':',m1,m2]
       | isDigit h1 && isDigit h2 && read [h1,h2] <= 23
       , isDigit m1 && isDigit m2 && read [m1,m2] <= 59
      -> pure . secondsToDiffTime $ (read [h1,h2] * 60 * 60) + (read [m1,m2] * 60)

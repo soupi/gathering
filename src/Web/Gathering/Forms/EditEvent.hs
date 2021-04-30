@@ -110,7 +110,7 @@ eventToEditEvent Event { eventName, eventDesc, eventLocation, eventDateTime, eve
 -- Delete event --
 
 -- | Definition of a delete event data type
-data DeleteEvent
+newtype DeleteEvent
   = DeleteEvent
   { imSure :: Bool
   }
