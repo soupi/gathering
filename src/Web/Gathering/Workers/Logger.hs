@@ -9,7 +9,6 @@ module Web.Gathering.Workers.Logger where
 import Web.Gathering.Utils (formatDateTime)
 
 import System.IO
-import Data.Monoid
 import Data.Text (Text)
 import Data.Time (getCurrentTime)
 import Control.Monad (void,forever, (<=<))

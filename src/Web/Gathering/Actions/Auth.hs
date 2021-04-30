@@ -18,7 +18,6 @@ import qualified Web.Gathering.Forms.Sign as FS
 import qualified Web.Gathering.Forms.Settings as FS
 
 import Data.Int (Int32)
-import Data.Monoid
 import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
 import Control.Exception

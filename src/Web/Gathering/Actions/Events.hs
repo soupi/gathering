@@ -20,7 +20,6 @@ import qualified Web.Gathering.Html as Html
 import qualified Data.Text as T
 import qualified Hasql.Transaction as Sql (Transaction)
 import Data.HVect (HVect(..), ListContains)
-import Data.Monoid
 import Data.Time
 
 import Web.Spock

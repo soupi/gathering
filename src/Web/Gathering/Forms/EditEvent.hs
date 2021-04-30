@@ -15,7 +15,6 @@ import Web.Gathering.Model
 import Web.Gathering.Forms.Utils
 import Web.Gathering.Html (Html)
 
-import Data.Monoid
 import Data.Maybe (isNothing)
 import Text.Digestive ((.:))
 import qualified Text.Digestive as D
