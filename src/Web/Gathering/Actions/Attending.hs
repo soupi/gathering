@@ -14,7 +14,6 @@ import Web.Gathering.Actions.Utils
 
 import qualified Data.Text as T
 import Data.HVect (HVect(..), ListContains, findFirst)
-import Data.Monoid
 
 import Web.Spock
 

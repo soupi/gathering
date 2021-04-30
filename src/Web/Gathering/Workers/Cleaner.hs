@@ -9,7 +9,7 @@ module Web.Gathering.Workers.Cleaner
 where
 
 import Data.Text (pack)
-import Turtle (forever, (<>), sleep)
+import Turtle (forever, sleep)
 import Hasql.Session
 import Hasql.Connection
 

@@ -36,7 +36,6 @@ module Web.Gathering.Config
   )
 where
 
-import Data.Monoid ((<>))
 import Data.Maybe (fromMaybe)
 import Data.ByteString.Char8 (ByteString, pack)
 import Options.Applicative

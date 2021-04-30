@@ -11,7 +11,6 @@ import Cheapskate.Lucid
 import Cheapskate (markdown, Options(..))
 import Control.Monad
 import Data.Text (Text, pack, unpack)
-import Data.Monoid
 import Data.List (find)
 import Network.URI (parseURI)
 

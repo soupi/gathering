@@ -9,7 +9,6 @@ import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Lazy.Encoding as TL
 import qualified Crypto.PasswordStore as C
-import Data.Monoid ((<>))
 import Data.Digest.Pure.MD5
 
 makePassword :: T.Text -> IO BS.ByteString

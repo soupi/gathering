@@ -25,7 +25,6 @@ import Hasql.Session
 import Hasql.Connection
 import Control.Monad
 import Data.Maybe (fromMaybe)
-import Data.Monoid
 import Data.Time (getCurrentTime, diffUTCTime)
 import Data.Text (pack, Text)
 import Data.Text.Encoding (decodeUtf8)
