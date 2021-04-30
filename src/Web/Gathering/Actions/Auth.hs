@@ -296,9 +296,17 @@ settingsAction = do
     (_, Just (FS.Settings wantsUpdates )) -> do
       result <- writeQuery $ updateUser (user { userWantsUpdates = wantsUpdates })
       case result of
+        -- Handling the left `QueryError` case for `writeQuery`
         Left (T.pack . show -> e) -> do
           err e
           text e
+
+        -- Handling the internal error that `updateUser` can now return
+        Right (Left e) -> do
+          err e
+          text e
+
+        -- Success
         Right _ -> do
           redirect "/"
 
