@@ -20,7 +20,7 @@ import Prelude hiding (unlines)
 import Control.Exception
 import Data.Bool (bool)
 import Turtle (sleep)
-import Network.Mail.SMTP
+import Network.Mail.SMTP hiding (htmlPart)
 import Hasql.Session
 import Hasql.Connection
 import Control.Monad
@@ -34,7 +34,7 @@ import qualified Data.Set as S
 import Lucid (renderText)
 import Cheapskate
 import Cheapskate.Lucid
-import Network.Mail.Mime (Part, Mail)
+import Network.Mail.Mime (Part, Mail, htmlPart)
 
 import Web.Gathering.Html (markdownOptions)
 import Web.Gathering.Model
